@@ -148,7 +148,7 @@
     box-shadow:0 12px 28px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05);
     transition:transform .18s cubic-bezier(.2,.9,.3,1.2), border-color .18s, box-shadow .18s, background .18s;
   }
-  .card:hover{transform:translateY(-5px);border-color:var(--neon);
+  .card:hover{border-color:var(--neon);
     background:linear-gradient(160deg, rgba(99,217,255,.20) 0%, rgba(29,40,58,.97) 52%, rgba(14,20,30,.98) 100%);
     box-shadow:0 18px 34px rgba(0,0,0,.42), 0 0 26px rgba(99,217,255,.18), inset 0 1px 0 rgba(255,255,255,.08)}
   /* 稀有度：整块卡面背景同步染色（不只是描边） */
@@ -182,23 +182,33 @@
     margin-top:.8vmin;font-size:clamp(8px,1.1vmin,12px);letter-spacing:.2em;color:#7f8fb3;
     font-family:var(--mono);
   }
-  /* ---- 换牌：每张卡下方单独一个翻转按钮 ---- */
-  #rrLine{
-    font-size:clamp(9px,1.2vmin,14px);letter-spacing:.14em;color:#ffe066;
-    font-family:var(--mono);opacity:.9;
-  }
-  #rrLine b{color:#fff;font-weight:700}
+  /* ---- 换牌：卡牌下方独立圆形按钮 + 次数徽标（参考金铲铲） ---- */
+  .cardwrap{display:flex;flex-direction:column;align-items:center;gap:1.2vmin}
+  .cardwrap .card{flex:1}
+  .cardwrap:hover .card{transform:translateY(-4px)}
   .flipbtn{
-    display:block;width:100%;margin-top:.85vmin;appearance:none;cursor:pointer;
-    font:inherit;font-family:var(--mono);font-size:clamp(9px,1.15vmin,13px);letter-spacing:.1em;
-    color:#ffe066;padding:.45vmin .6vmin;border-radius:var(--r-sm);
-    border:1px dashed rgba(255,224,102,.42);background:rgba(255,224,102,.07);
-    transition:background .15s, border-color .15s, transform .15s, opacity .15s;
+    position:relative;display:grid;place-items:center;appearance:none;cursor:pointer;
+    width:clamp(32px,4.6vmin,52px);height:clamp(32px,4.6vmin,52px);padding:0;
+    border-radius:50%;color:#ffe066;
+    border:1px solid rgba(255,224,102,.55);
+    background:radial-gradient(circle at 50% 34%, rgba(255,224,102,.30) 0%, rgba(255,224,102,.08) 58%, rgba(255,224,102,.03) 100%);
+    box-shadow:0 .5vmin 1.4vmin rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18), inset 0 -2px 6px rgba(0,0,0,.45);
+    transition:transform .15s cubic-bezier(.2,.9,.3,1.3), border-color .15s, background .15s, box-shadow .15s, opacity .15s;
   }
-  .flipbtn:hover{background:rgba(255,224,102,.2);border-color:#ffe066;transform:translateY(-1px)}
-  .flipbtn:active{transform:scale(.98)}
-  .flipbtn:disabled{opacity:.28;cursor:default;transform:none;color:#8f8663;
-    border-color:rgba(255,224,102,.18);background:rgba(255,224,102,.03)}
+  .flipbtn svg{width:66%;height:66%;display:block}
+  .flipbtn:hover{transform:translateY(-2px);border-color:#ffe066;
+    background:radial-gradient(circle at 50% 34%, rgba(255,224,102,.46) 0%, rgba(255,224,102,.14) 60%, rgba(255,224,102,.05) 100%);
+    box-shadow:0 .7vmin 1.8vmin rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.22), 0 0 1.8vmin rgba(255,224,102,.36)}
+  .flipbtn:active{transform:scale(.94)}
+  .flipbtn:disabled{opacity:.3;cursor:default;transform:none;filter:grayscale(.75)}
+  .flipbtn:disabled .rrbadge{color:#8f8663;border-color:rgba(255,224,102,.22);background:#14110a}
+  .rrbadge{
+    position:absolute;right:-.5vmin;bottom:-.5vmin;min-width:2.1vmin;height:2.1vmin;
+    padding:0 .4vmin;box-sizing:border-box;border-radius:999px;
+    background:#15120a;border:1px solid rgba(255,224,102,.62);color:#ffe066;
+    font-family:var(--mono);font-size:clamp(9px,1.05vmin,12px);line-height:calc(2.1vmin - 2px);
+    text-align:center;letter-spacing:0;box-shadow:0 2px 6px rgba(0,0,0,.5);
+  }
   .card.flip{animation:cardFlip .34s cubic-bezier(.2,.9,.3,1.25) both}
   @keyframes cardFlip{
     from{transform:rotateY(86deg) scale(.96);opacity:.2}
@@ -506,8 +516,9 @@
     #upgradeScreen .cname{font-size:13px;letter-spacing:.04em}
     #upgradeScreen .cdesc{min-height:0;font-size:10px;line-height:1.5}
     #upgradeScreen .buildline{display:none}
-    #upgradeScreen #rrLine{font-size:10px;letter-spacing:.08em}
-    #upgradeScreen .flipbtn{font-size:10px;padding:.5vmin .4vmin;margin-top:.7vmin}
+    #upgradeScreen .cardwrap{gap:1vmin}
+    #upgradeScreen .flipbtn{width:38px;height:38px}
+    #upgradeScreen .rrbadge{min-width:16px;height:16px;line-height:14px;font-size:9px}
   }
 </style>
 </head>
@@ -549,7 +560,6 @@
 
   <div id="upgradeScreen" class="layer hidden">
     <div class="sub" style="letter-spacing:.3em;color:#ffe066">LEVEL UP</div>
-    <div id="rrLine">↻ 换牌机会 <b id="rerollCount">0</b></div>
     <div class="cards" id="cards"></div>
     <div class="buildline" id="buildLine"></div>
   </div>
@@ -2706,12 +2716,21 @@ function openUpgrade() {
   blip(600, 0.1, 'triangle', 0.05, 260);
 }
 
+const RR_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<polyline points="23 4 23 10 17 10"></polyline>' +
+  '<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
+
 function renderUpgradeUI(flipIndex) {
   const box = $('#cards');
   box.innerHTML = '';
   const hasAlt = UPGRADES.some((u) => (player.upg[u.id] || 0) < u.max && !shopOptions.some((o) => o.id === u.id));
+  const canFlip = rerolls > 0 && hasAlt;
   shopOptions.forEach((u, i) => {
     const lvl = player.upg[u.id] || 0;
+    const wrap = document.createElement('div');
+    wrap.className = 'cardwrap';
     const el = document.createElement('div');
     el.className = 'card r' + u.rar + (flipIndex === i ? ' flip' : '');
     el.innerHTML =
@@ -2719,15 +2738,24 @@ function renderUpgradeUI(flipIndex) {
       '<div class="cname">' + u.name + '</div>' +
       '<div class="cmax">Lv.' + lvl + ' → ' + (lvl + 1) + ((lvl + 1 === u.max) ? ' · 满级' : '') + '</div>' +
       '<div class="cdesc">' + u.desc + '</div>' +
-      '<div class="rartag">' + (u.rar === 3 ? 'EPIC · 史诗' : u.rar === 2 ? 'RARE · 稀有' : 'COMMON · 常见') + '</div>' +
-      '<button class="flipbtn" type="button"' + (rerolls > 0 && hasAlt ? '' : ' disabled') + '>↻ 换这张</button>';
+      '<div class="rartag">' + (u.rar === 3 ? 'EPIC · 史诗' : u.rar === 2 ? 'RARE · 稀有' : 'COMMON · 常见') + '</div>';
     el.addEventListener('click', () => chooseIndex(i));
-    const btn = el.querySelector('.flipbtn');
-    btn.addEventListener('click', (ev) => { ev.stopPropagation(); flipCard(i); });
-    box.appendChild(el);
-  });
 
-  $('#rerollCount').textContent = String(rerolls);
+    /* 换牌按钮独立放在卡牌下方，只在图标上落点，避免误触选牌 */
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'flipbtn';
+    btn.disabled = !canFlip;
+    btn.title = canFlip ? ('换掉这张牌 · 剩 ' + rerolls + ' 次')
+      : (hasAlt ? '没有换牌机会了' : '没有可替换的强化');
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML = RR_ICON + '<span class="rrbadge">' + rerolls + '</span>';
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); flipCard(i); });
+
+    wrap.appendChild(el);
+    wrap.appendChild(btn);
+    box.appendChild(wrap);
+  });
 
   const owned = UPGRADES.filter((u) => player.upg[u.id]);
   $('#buildLine').innerHTML = owned.length
