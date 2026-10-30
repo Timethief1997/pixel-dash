@@ -210,16 +210,16 @@
   body.touch #mobileControls.show{display:block}
   #stickZone{position:absolute;left:0;top:0;width:52%;height:100%;pointer-events:auto;touch-action:none}
   #stick{
-    position:absolute;left:calc(2.6vmin + clamp(32px,15%,62px));top:calc(100% - 2.6vmin - clamp(32px,15%,62px));
-    height:clamp(64px,30%,124px);aspect-ratio:1;transform:translate(-50%,-50%);
-    border-radius:50%;pointer-events:none;touch-action:none;opacity:.34;
+    position:absolute;left:calc(2.6vmin + clamp(42px,19%,84px));top:calc(100% - 2.6vmin - clamp(42px,19%,84px));
+    height:clamp(84px,38%,168px);aspect-ratio:1;transform:translate(-50%,-50%);
+    border-radius:50%;pointer-events:none;touch-action:none;opacity:.26;
     background:radial-gradient(circle at 50% 50%,rgba(99,217,255,.12),rgba(8,14,24,.78));
     border:2px solid rgba(99,217,255,.32);box-shadow:inset 0 0 18px rgba(99,217,255,.12);
     transition:opacity .14s ease;
   }
   #stick.on{opacity:1}
   #knob{
-    position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;
+    position:absolute;left:50%;top:50%;width:36%;height:36%;margin:-18% 0 0 -18%;
     border-radius:50%;background:rgba(99,217,255,.42);border:2px solid rgba(255,255,255,.55);
     box-shadow:0 0 12px rgba(99,217,255,.45);pointer-events:none;
   }
@@ -1815,7 +1815,7 @@ function stickDir(deg) {
 function stickMove(cx, cy) {
   if (!stickAnchor) return;
   const size = stickEl.offsetWidth || 100;
-  const max = size / 2 - 6;
+  const max = size * 0.32 - 2;   // 留出旋钮半径，推到极限时旋钮仍留在底座内
   const dx = cx - stickAnchor.x, dy = cy - stickAnchor.y;
   const len = Math.hypot(dx, dy);
   const cl = Math.min(len, max);
