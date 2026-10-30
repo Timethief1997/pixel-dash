@@ -182,6 +182,31 @@
     margin-top:.8vmin;font-size:clamp(8px,1.1vmin,12px);letter-spacing:.2em;color:#7f8fb3;
     font-family:var(--mono);
   }
+  /* ---- 换一批 ---- */
+  #rerollBar{display:flex;flex-direction:column;align-items:center;gap:.75vmin}
+  .rbtn{
+    appearance:none;display:inline-flex;align-items:center;gap:.7vmin;cursor:pointer;
+    font:inherit;font-size:clamp(11px,1.5vmin,17px);letter-spacing:.12em;font-weight:600;
+    color:#ffe066;padding:.75vmin 2.2vmin;border-radius:var(--r-md);
+    border:1px solid rgba(255,224,102,.45);
+    background:linear-gradient(180deg, rgba(255,224,102,.16), rgba(255,224,102,.03));
+    box-shadow:0 6px 16px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.08);
+    transition:transform .14s, border-color .14s, background .14s, opacity .14s, box-shadow .14s;
+  }
+  .rbtn:hover{transform:translateY(-2px);border-color:#ffe066;
+    background:linear-gradient(180deg, rgba(255,224,102,.3), rgba(255,224,102,.07))}
+  .rbtn:active{transform:translateY(0) scale(.97)}
+  .rbtn:disabled{opacity:.32;cursor:default;transform:none;color:#8f8663;
+    border-color:rgba(255,224,102,.2);box-shadow:none}
+  .rbtn .rico{font-size:1.2em;line-height:1;display:inline-block}
+  .rbtn:hover .rico{transform:rotate(18deg);transition:transform .18s}
+  .rbtn b{font-family:var(--mono);font-size:.92em;color:#fff}
+  .rtip{font-size:clamp(9px,1.15vmin,13px);color:#6f80a6;font-family:var(--mono);letter-spacing:.04em}
+  #cards.spin .card{animation:cardFlip .32s cubic-bezier(.2,.9,.3,1.25) both}
+  @keyframes cardFlip{
+    from{transform:rotateY(86deg) scale(.96);opacity:.2}
+    to{transform:none;opacity:1}
+  }
   .buildline{font-size:clamp(9px,1.2vmin,14px);color:#6f80a6;max-width:70ch;line-height:1.8;font-family:var(--mono)}
   .buildline span{color:#93a4c9}
   .buildline span:nth-child(odd){color:var(--neon)}
@@ -484,6 +509,8 @@
     #upgradeScreen .cname{font-size:13px;letter-spacing:.04em}
     #upgradeScreen .cdesc{min-height:0;font-size:10px;line-height:1.5}
     #upgradeScreen .buildline{display:none}
+    #upgradeScreen .rtip{display:none}
+    #upgradeScreen .rbtn{font-size:11px;padding:.7vmin 1.8vmin}
   }
 </style>
 </head>
@@ -520,12 +547,16 @@
       <button class="btn ghost" id="histBtn">历史记录</button>
       <button class="btn ghost" id="codexBtn">怪物图鉴</button>
     </div>
-    <div class="hint"><span>WASD / 方向键 移动　·　空格 冲刺　·　P 暂停　·　M 静音</span><br class="hideline" /><span class="line2">升级时按 1 / 2 / 3 或点击选择　·　手机端：左下摇杆 + 右下冲刺</span></div>
+    <div class="hint"><span>WASD / 方向键 移动　·　空格 冲刺　·　P 暂停　·　M 静音</span><br class="hideline" /><span class="line2">升级时按 1 / 2 / 3 选择　·　R 换一批　·　手机端：左下摇杆 + 右下冲刺</span></div>
   </div>
 
   <div id="upgradeScreen" class="layer hidden">
     <div class="sub" style="letter-spacing:.3em;color:#ffe066">LEVEL UP</div>
     <div class="cards" id="cards"></div>
+    <div id="rerollBar">
+      <button class="rbtn" id="rerollBtn"><span class="rico">↻</span> 换一批 <b id="rerollCount">0</b></button>
+      <span class="rtip">点箭头或按 R 随机换三张（靠击杀掉落获得）</span>
+    </div>
     <div class="buildline" id="buildLine"></div>
   </div>
 
@@ -1201,10 +1232,11 @@ const splitQueue = [];
 const SPLIT_MAX = 20;   // 分裂小兵同屏上限
 let pendingLevels = 0;
 let shopOptions = [];
+let rerolls = 0;      // 翻牌（重抽）机会，靠击杀掉落获取
 let eid = 0;
 
 let player = null;
-let enemies = [], orbs = [], bullets = [], ebullets = [];
+let enemies = [], orbs = [], bullets = [], ebullets = [], drops = [];
 let particles = [], trails = [], effects = [], texts = [], marks = [];
 
 const keys = {};
@@ -1395,8 +1427,9 @@ function resetWorld() {
   hitStop = 0; hitSnd = 0; orbChain = 0; orbChainT = 0;
   spawnTimer = 2.0 * diff.spawn; nextBoss = 100; pendingLevels = 0;
   bossGen = 0; lastTier = 0; splitQueue.length = 0;
-  enemies = []; orbs = []; bullets = []; ebullets = [];
+  enemies = []; orbs = []; bullets = []; ebullets = []; drops = [];
   particles = []; trails = []; effects = []; texts = []; marks = [];
+  rerolls = 1;   // 每局开局送一次翻牌机会
   eid = 0;
   player = makePlayer();
 }
@@ -1688,6 +1721,7 @@ window.addEventListener('keydown', (e) => {
   if ((state === 'dead' || state === 'won') && k === 'escape') { goMenu(); return; }
   if (state === 'playing' && k === ' ') { tryDash(); return; }
   if (state === 'upgrade' && (k === '1' || k === '2' || k === '3')) { chooseIndex(Number(k) - 1); return; }
+  if (state === 'upgrade' && k === 'r') { doReroll(); return; }
 });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -1910,6 +1944,7 @@ if (touchMode) document.body.classList.add('touch');
 
 $('#startBtn').addEventListener('click', startGame);
 $('#retryBtn').addEventListener('click', startGame);
+$('#rerollBtn').addEventListener('click', (e) => { e.preventDefault(); doReroll(); });
 $('#endMenuBtn').addEventListener('click', goMenu);
 $('#histBtn').addEventListener('click', openHistory);
 $('#codexBtn').addEventListener('click', openCodex);
@@ -2124,6 +2159,11 @@ function killEnemy(e) {
   const pts = Math.round((e.pts || t.pts) * player.stats.scoreMul * (e.affix ? 2.5 : 1));
   killScore += pts;
   orbs.push({ x: e.x, y: e.y, v: e.affix ? Math.max(2, t.xp * 2) : t.xp, r: 2.2, dead: false });
+  // 翻牌机会掉落：普通怪小概率、精英较高、BOSS 必掉
+  const rrChance = e.type === 'boss' ? 1 : e.affix ? 0.2 : 0.03;
+  if (rerolls + drops.length < 6 && Math.random() < rrChance) {
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false });
+  }
   const kcol = e.affix ? AFFIX[e.affix].col : t.color;
 
   // 打击感：顿帧 + 震屏 + 冲击环 + 分数飘字
@@ -2416,6 +2456,30 @@ function gainXP(n) {
   if (pendingLevels > 0 && state === 'playing') openUpgrade();
 }
 
+/* 翻牌机会：靠近吸附，碰到即收集 */
+function updateDrops(dt) {
+  const p = player;
+  for (const d of drops) {
+    d.t += dt;
+    const dx = p.x - d.x, dy = p.y - d.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (dist < 34) {
+      const sp = 60 + 120 * (1 - dist / 34);
+      d.x += (dx / dist) * sp * dt;
+      d.y += (dy / dist) * sp * dt;
+    }
+    if (dist < 8) {
+      d.dead = true;
+      rerolls = Math.min(6, rerolls + 1);
+      toast('翻牌机会 +1');
+      blip(980, 0.06, 'triangle', 0.05, 220);
+      effects.push({ x: d.x, y: d.y, r: 8, life: 0.2, max: 0.2, color: '#ffe066' });
+      burst(d.x, d.y, '#ffe066', 6, 40);
+    }
+  }
+  drops = drops.filter((d) => !d.dead);
+}
+
 function updateOrbs(dt) {
   const p = player;
   orbChainT -= dt;
@@ -2589,6 +2653,7 @@ function update(dt) {
   updateZones(dt);
   updateOrbs(dt);
   if (state !== 'playing') return;
+  updateDrops(dt);
 
   // 分裂词缀的产物：伤害结算结束后再入场，避免连锁在同一帧里结算
   if (splitQueue.length) {
@@ -2620,12 +2685,14 @@ function update(dt) {
 function openUpgrade() {
   if (state !== 'playing') return;
   state = 'upgrade';
+  if (stickId !== null) stickReset();   // 收起摇杆，避免选牌时方向键卡住
 
   const avail = UPGRADES.filter((u) => (player.upg[u.id] || 0) < u.max);
   if (!avail.length) {
     player.hp = Math.min(player.maxHp, player.hp + 2);
     pendingLevels = 0;
     state = 'playing';
+    player.invuln = Math.max(player.invuln || 0, 1.8);
     return;
   }
   shopOptions = rollOptions(avail, 3);
@@ -2634,9 +2701,10 @@ function openUpgrade() {
   blip(600, 0.1, 'triangle', 0.05, 260);
 }
 
-function renderUpgradeUI() {
+function renderUpgradeUI(spin) {
   const box = $('#cards');
   box.innerHTML = '';
+  box.classList.remove('spin');
   shopOptions.forEach((u, i) => {
     const lvl = player.upg[u.id] || 0;
     const el = document.createElement('div');
@@ -2650,11 +2718,29 @@ function renderUpgradeUI() {
     el.addEventListener('click', () => chooseIndex(i));
     box.appendChild(el);
   });
+  if (spin) {
+    box.classList.add('spin');
+    setTimeout(() => box.classList.remove('spin'), 340);
+  }
+
+  $('#rerollCount').textContent = String(rerolls);
+  $('#rerollBtn').disabled = rerolls <= 0;
 
   const owned = UPGRADES.filter((u) => player.upg[u.id]);
   $('#buildLine').innerHTML = owned.length
     ? '当前构筑：' + owned.map((u) => '<span>' + u.name + ' ' + player.upg[u.id] + '</span>').join(' · ')
     : '当前构筑：空';
+}
+
+/* 换一批：消耗一次翻牌机会，随机换成另外三张 */
+function doReroll() {
+  if (state !== 'upgrade' || rerolls <= 0) return;
+  const avail = UPGRADES.filter((u) => (player.upg[u.id] || 0) < u.max);
+  if (!avail.length) return;
+  rerolls -= 1;
+  shopOptions = rollOptions(avail, 3);
+  renderUpgradeUI(true);
+  blip(780, 0.06, 'square', 0.05, 150);
 }
 
 function chooseIndex(i) {
@@ -2669,8 +2755,13 @@ function chooseIndex(i) {
   layers.upgrade.classList.add('hidden');
   pendingLevels -= 1;
   blip(520, 0.08, 'triangle', 0.05, 300);
-  if (pendingLevels > 0) openUpgrade();
-  else state = 'playing';
+  if (pendingLevels > 0) {
+    openUpgrade();
+  } else {
+    state = 'playing';
+    // 回到战斗先给一段无敌，避免选牌时被贴脸
+    player.invuln = Math.max(player.invuln || 0, 1.8);
+  }
 }
 
 /* ============================================================
@@ -2970,6 +3061,25 @@ function render() {
     ctx.fillStyle = '#bff8ff';
     const s = Math.round(2 * pulse);
     ctx.fillRect(Math.round(o.x) - Math.round(s / 2), Math.round(o.y) - Math.round(s / 2), s, s);
+  }
+
+  // 翻牌机会（卡片道具）
+  for (const d of drops) {
+    const bob = Math.sin(time * 4 + d.t) * 1.5;
+    const x = Math.round(d.x), y = Math.round(d.y + bob);
+    const pulse = 0.16 + 0.12 * Math.abs(Math.sin(time * 5 + d.t));
+    ctx.fillStyle = 'rgba(255,224,102,' + pulse.toFixed(2) + ')';
+    ctx.fillRect(x - 5, y - 6, 11, 13);
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(x - 4, y - 5, 9, 11);
+    ctx.fillStyle = '#ffd54a';
+    ctx.fillRect(x - 3, y - 4, 7, 9);
+    ctx.fillStyle = '#c9a227';
+    ctx.fillRect(x - 2, y - 3, 5, 1);
+    ctx.fillRect(x - 2, y - 1, 5, 1);
+    ctx.fillStyle = '#8a6a00';
+    ctx.fillRect(x - 2, y + 1, 5, 1);
+    ctx.fillRect(x - 2, y + 3, 3, 1);
   }
 
   // 弹药
