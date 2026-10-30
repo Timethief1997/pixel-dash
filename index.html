@@ -208,12 +208,16 @@
   /* ---- 移动端触控 ---- */
   #mobileControls{position:absolute;inset:0;display:none;z-index:7;pointer-events:none}
   body.touch #mobileControls.show{display:block}
+  #stickZone{position:absolute;left:0;top:0;width:52%;height:100%;pointer-events:auto;touch-action:none}
   #stick{
-    position:absolute;left:2.6vmin;bottom:2.6vmin;pointer-events:auto;touch-action:none;
-    height:clamp(64px,30%,124px);aspect-ratio:1;border-radius:50%;
+    position:absolute;left:calc(2.6vmin + clamp(32px,15%,62px));top:calc(100% - 2.6vmin - clamp(32px,15%,62px));
+    height:clamp(64px,30%,124px);aspect-ratio:1;transform:translate(-50%,-50%);
+    border-radius:50%;pointer-events:none;touch-action:none;opacity:.34;
     background:radial-gradient(circle at 50% 50%,rgba(99,217,255,.12),rgba(8,14,24,.78));
     border:2px solid rgba(99,217,255,.32);box-shadow:inset 0 0 18px rgba(99,217,255,.12);
+    transition:opacity .14s ease;
   }
+  #stick.on{opacity:1}
   #knob{
     position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;
     border-radius:50%;background:rgba(99,217,255,.42);border:2px solid rgba(255,255,255,.55);
@@ -550,7 +554,7 @@
   </div>
 
   <div id="mobileControls">
-    <div id="stick"><div id="knob"></div></div>
+    <div id="stickZone"><div id="stick"><div id="knob"></div></div></div>
     <button id="dashBtn">冲刺</button>
   </div>
 
@@ -1789,41 +1793,82 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) setPaused(true);
 });
 
-/* ---- 虚拟摇杆 ---- */
-const stickEl = $('#stick'), knobEl = $('#knob');
-let stickId = null;
-const STICK_DEAD = 0.3;
+/* ---- 虚拟摇杆（浮动底座 + 8 向滞回 + 幅度调速） ---- */
+const stickEl = $('#stick'), knobEl = $('#knob'), stickZone = $('#stickZone');
+let stickId = null, stickAnchor = null, stickLock = -1, stickMag = 0;
+const STICK_DEAD = 0.18;   // 死区：占最大偏移的比例（半径内不响应）
+const STICK_HYST = 10;     // 方向切换滞回（度），防止边界抖动导致 45° 跳变
+
+/* 角度 -> 8 扇区；只有偏离当前扇区中心超过 22.5°+滞回才换向 */
+function stickDir(deg) {
+  const step = 45;
+  if (stickLock < 0) stickLock = ((Math.round(deg / step) % 8) + 8) % 8;
+  else {
+    let d = deg - stickLock * step;
+    d = ((d + 540) % 360) - 180;
+    if (Math.abs(d) > step / 2 + STICK_HYST) stickLock = ((Math.round(deg / step) % 8) + 8) % 8;
+  }
+  const a = stickLock * Math.PI / 4;
+  return [Math.cos(a), Math.sin(a)];
+}
 
 function stickMove(cx, cy) {
-  const r = stickEl.getBoundingClientRect();
-  const dx = cx - (r.left + r.width / 2);
-  const dy = cy - (r.top + r.height / 2);
-  const len = Math.hypot(dx, dy) || 1;
-  const max = r.width / 2 - 6;
+  if (!stickAnchor) return;
+  const size = stickEl.offsetWidth || 100;
+  const max = size / 2 - 6;
+  const dx = cx - stickAnchor.x, dy = cy - stickAnchor.y;
+  const len = Math.hypot(dx, dy);
   const cl = Math.min(len, max);
-  const nx = dx / len, ny = dy / len;
-  knobEl.style.transform = `translate(${(nx * cl).toFixed(1)}px,${(ny * cl).toFixed(1)}px)`;
-  keys['a'] = nx < -STICK_DEAD; keys['d'] = nx > STICK_DEAD;
-  keys['w'] = ny < -STICK_DEAD; keys['s'] = ny > STICK_DEAD;
+  const ux = len ? dx / len : 0, uy = len ? dy / len : 0;
+  knobEl.style.transform = `translate(${(ux * cl).toFixed(1)}px,${(uy * cl).toFixed(1)}px)`;
+  if (len < max * STICK_DEAD) {          // 半径死区：轻触不动
+    stickMag = 0;
+    keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
+    return;
+  }
+  stickMag = Math.min(1, (len / max - STICK_DEAD) / (1 - STICK_DEAD));
+  const deg = Math.atan2(dy, dx) * 180 / Math.PI;
+  const [sx, sy] = stickDir(deg);
+  keys['a'] = sx < -0.01; keys['d'] = sx > 0.01;
+  keys['w'] = sy < -0.01; keys['s'] = sy > 0.01;
 }
+
+/* 按下处即零点：底座跟着手指生成，方向看相对位移 */
+function stickShow(cx, cy) {
+  const zr = stickZone.getBoundingClientRect();
+  const size = stickEl.offsetWidth || 100;
+  const half = size / 2 + 4;
+  const px = Math.min(Math.max(cx, zr.left + half), zr.left + zr.width - half);
+  const py = Math.min(Math.max(cy, zr.top + half), zr.top + zr.height - half);
+  stickEl.style.left = (px - zr.left) + 'px';
+  stickEl.style.top = (py - zr.top) + 'px';
+  stickEl.classList.add('on');
+  stickAnchor = { x: px, y: py };
+  knobEl.style.transform = 'translate(0px,0px)';
+}
+
 function stickReset() {
-  stickId = null;
+  stickId = null; stickAnchor = null; stickLock = -1; stickMag = 0;
+  stickEl.classList.remove('on');
+  stickEl.style.left = ''; stickEl.style.top = '';
   knobEl.style.transform = '';
   keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
 }
-stickEl.addEventListener('pointerdown', (e) => {
+stickZone.addEventListener('pointerdown', (e) => {
+  if (stickId !== null) return;
   e.preventDefault();
   stickId = e.pointerId;
-  stickEl.setPointerCapture(e.pointerId);
+  stickZone.setPointerCapture(e.pointerId);
+  stickShow(e.clientX, e.clientY);
   stickMove(e.clientX, e.clientY);
 });
-stickEl.addEventListener('pointermove', (e) => {
+stickZone.addEventListener('pointermove', (e) => {
   if (e.pointerId !== stickId) return;
   e.preventDefault();
   stickMove(e.clientX, e.clientY);
 });
 ['pointerup', 'pointercancel'].forEach((t) =>
-  stickEl.addEventListener(t, (e) => { if (e.pointerId === stickId) stickReset(); }));
+  stickZone.addEventListener(t, (e) => { if (e.pointerId === stickId) stickReset(); }));
 
 $('#dashBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); tryDash(); });
 
@@ -1969,8 +2014,10 @@ function updatePlayer(dt) {
     }
   } else {
     const m = Math.hypot(ix, iy) || 1;
-    p.x += (ix / m) * p.stats.speed * dt * (ix || iy ? 1 : 0);
-    p.y += (iy / m) * p.stats.speed * dt * (ix || iy ? 1 : 0);
+    // 摇杆推动幅度决定速度：轻推慢走、推满全速（键盘始终全速）
+    const spd = p.stats.speed * (stickMag > 0 ? 0.45 + 0.55 * stickMag : 1);
+    p.x += (ix / m) * spd * dt * (ix || iy ? 1 : 0);
+    p.y += (iy / m) * spd * dt * (ix || iy ? 1 : 0);
     if (ix || iy) {
       p.dirx = ix / m;
       p.diry = iy / m;
