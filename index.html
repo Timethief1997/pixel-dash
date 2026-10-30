@@ -1960,7 +1960,7 @@ let AC = null, muted = false;
 const MUTE_KEY = 'pixelDash.muted';
 /* 音效总音量倍数：BGM 固定在 #bgm 的 0.42，音效单次增益都写得很小，
    统一在这里放大，避免逐个改 30 处调用点 */
-const SFX_GAIN = 2.5;
+const SFX_GAIN = 4.5;
 function audio() {
   if (!AC) {
     try { AC = new (window.AudioContext || window.webkitAudioContext)(); }
