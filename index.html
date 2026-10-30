@@ -140,9 +140,9 @@
     box-shadow:0 10px 22px rgba(0,0,0,.32);
   }
 
-  .cards{display:flex;gap:1.6vmin;flex-wrap:wrap;justify-content:center;max-width:100%}
+  .cards{display:flex;gap:clamp(10px,2.4vmin,26px);flex-wrap:nowrap;justify-content:center;align-items:stretch;width:100%}
   .card{
-    position:relative;width:clamp(180px,24vmin,300px);padding:1.9vmin 1.8vmin 1.6vmin;
+    position:relative;width:100%;padding:1.9vmin 1.8vmin 1.6vmin;
     background:linear-gradient(160deg, rgba(126,158,206,.10) 0%, rgba(19,24,38,.96) 52%, rgba(11,14,22,.98) 100%);
     border:1px solid rgba(96,116,160,.42);border-radius:var(--r-lg);text-align:left;cursor:pointer;
     box-shadow:0 12px 28px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05);
@@ -183,7 +183,10 @@
     font-family:var(--mono);
   }
   /* ---- 换牌：卡牌下方独立圆形按钮 + 次数徽标（参考金铲铲） ---- */
-  .cardwrap{display:flex;flex-direction:column;align-items:center;gap:1.2vmin}
+  .cardwrap{
+    display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.4vmin,18px);
+    flex:0 1 clamp(150px,30vmin,300px);min-width:0;max-width:100%;
+  }
   .cardwrap .card{flex:1}
   .cardwrap:hover .card{transform:translateY(-4px)}
   .flipbtn{
@@ -201,14 +204,18 @@
     box-shadow:0 .7vmin 1.8vmin rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.22), 0 0 1.8vmin rgba(255,224,102,.36)}
   .flipbtn:active{transform:scale(.94)}
   .flipbtn:disabled{opacity:.3;cursor:default;transform:none;filter:grayscale(.75)}
-  .flipbtn:disabled .rrbadge{color:#8f8663;border-color:rgba(255,224,102,.22);background:#14110a}
-  .rrbadge{
-    position:absolute;right:-.5vmin;bottom:-.5vmin;min-width:2.1vmin;height:2.1vmin;
-    padding:0 .4vmin;box-sizing:border-box;border-radius:999px;
-    background:#15120a;border:1px solid rgba(255,224,102,.62);color:#ffe066;
-    font-family:var(--mono);font-size:clamp(9px,1.05vmin,12px);line-height:calc(2.1vmin - 2px);
-    text-align:center;letter-spacing:0;box-shadow:0 2px 6px rgba(0,0,0,.5);
+  /* 共用的换牌机会标记：全局只出现一处，避免被误读成每张卡各自次数 */
+  .rr-token{
+    display:inline-flex;align-items:center;gap:.6vmin;
+    font-family:var(--mono);font-size:clamp(9px,1.15vmin,13px);letter-spacing:.1em;
+    color:#ffe066;padding:.4vmin 1.1vmin .4vmin .5vmin;border-radius:999px;
+    border:1px solid rgba(255,224,102,.42);background:rgba(255,224,102,.08);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
   }
+  .rr-token svg{width:1.9em;height:1.9em;display:block}
+  .rr-token b{font-family:var(--mono);font-size:1.12em;color:#fff;font-weight:700}
+  .rr-token.empty{opacity:.5;color:#8f8663;border-color:rgba(255,224,102,.18);background:rgba(255,224,102,.03)}
+  .rr-token.empty b{color:#8f8663}
   .card.flip{animation:cardFlip .34s cubic-bezier(.2,.9,.3,1.25) both}
   @keyframes cardFlip{
     from{transform:rotateY(86deg) scale(.96);opacity:.2}
@@ -486,13 +493,54 @@
   .mcard.locked .mdesc{color:#465268}
   .cnote{font-size:clamp(9px,1.2vmin,13px);color:#7f8fb3;letter-spacing:.1em;font-family:var(--mono)}
 
+  /* ---- 成就殿堂 ---- */
+  .agrid{
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.2vmin;
+    width:min(96%,980px);max-height:67%;overflow:auto;padding:.4vmin;text-align:left;
+  }
+  .acard{
+    background:linear-gradient(180deg,#141a2b,#0f1320);border:1px solid #2b3350;border-radius:var(--r-lg);
+    padding:1.1vmin 1.05vmin;display:flex;flex-direction:column;gap:.65vmin;
+    box-shadow:0 10px 24px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .atop{display:flex;align-items:center;gap:.9vmin}
+  .aseal{
+    flex:0 0 auto;display:grid;place-items:center;
+    width:clamp(24px,4.2vmin,38px);height:clamp(24px,4.2vmin,38px);border-radius:50%;
+    font-size:clamp(10px,1.5vmin,17px);font-weight:800;font-family:var(--mono);
+    color:#465268;border:1px solid #2b3350;background:rgba(255,255,255,.02);
+  }
+  .aname{font-size:clamp(11px,1.6vmin,18px);font-weight:600;color:#4a5875;letter-spacing:.06em;line-height:1.2}
+  .akind{font-size:clamp(8px,1.05vmin,12px);color:#7f8fb3;letter-spacing:.12em;font-family:var(--mono)}
+  .adesc{font-size:clamp(9px,1.2vmin,13px);color:#93a4c9;line-height:1.6;min-height:3em}
+  .adate{font-size:clamp(8px,1.1vmin,12px);color:#6f80a6;letter-spacing:.06em;font-family:var(--mono);margin-top:auto}
+  .acard.locked{opacity:.62;border-style:dashed}
+  .acard.locked .adesc{color:#55617e}
+  .acard.pos.unlocked{
+    border-color:rgba(255,224,102,.52);
+    background:linear-gradient(180deg,rgba(255,224,102,.16),#12131c);
+    box-shadow:0 10px 24px rgba(0,0,0,.32), 0 0 20px rgba(255,224,102,.12), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .acard.pos.unlocked .aseal{color:#ffe066;border-color:rgba(255,224,102,.6);background:rgba(255,224,102,.1);box-shadow:0 0 12px rgba(255,224,102,.25)}
+  .acard.pos.unlocked .aname{color:var(--gold)}
+  .acard.pos.unlocked .adate{color:#d8bd65}
+  .acard.neg.unlocked{
+    border-color:rgba(255,154,107,.52);
+    background:linear-gradient(180deg,rgba(255,154,107,.14),#161316);
+    box-shadow:0 10px 24px rgba(0,0,0,.32), 0 0 20px rgba(255,154,107,.10), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .acard.neg.unlocked .aseal{color:#ff9a6b;border-color:rgba(255,154,107,.6);background:rgba(255,154,107,.1);box-shadow:0 0 12px rgba(255,154,107,.22)}
+  .acard.neg.unlocked .aname{color:#ff9a6b}
+  .acard.neg.unlocked .adate{color:#ff9a6b;opacity:.85}
+  .anote{font-size:clamp(9px,1.2vmin,13px);color:#7f8fb3;letter-spacing:.1em;font-family:var(--mono)}
+
   /* ---- 细节：滚动条 / 焦点态 ---- */
-  .hlist::-webkit-scrollbar,.cgrid::-webkit-scrollbar{width:6px;height:6px}
-  .hlist::-webkit-scrollbar-track,.cgrid::-webkit-scrollbar-track{background:transparent}
-  .hlist::-webkit-scrollbar-thumb,.cgrid::-webkit-scrollbar-thumb{
+  .hlist::-webkit-scrollbar,.cgrid::-webkit-scrollbar,.agrid::-webkit-scrollbar{width:6px;height:6px}
+  .hlist::-webkit-scrollbar-track,.cgrid::-webkit-scrollbar-track,.agrid::-webkit-scrollbar-track{background:transparent}
+  .hlist::-webkit-scrollbar-thumb,.cgrid::-webkit-scrollbar-thumb,.agrid::-webkit-scrollbar-thumb{
     background:rgba(99,217,255,.26);border-radius:999px;
   }
-  .hlist::-webkit-scrollbar-thumb:hover,.cgrid::-webkit-scrollbar-thumb:hover{background:rgba(99,217,255,.45)}
+  .hlist::-webkit-scrollbar-thumb:hover,.cgrid::-webkit-scrollbar-thumb:hover,.agrid::-webkit-scrollbar-thumb:hover{background:rgba(99,217,255,.45)}
   button:focus-visible{outline:2px solid rgba(99,217,255,.65);outline-offset:3px}
 
   /* 手机竖屏：舞台只有 ~219px 高，压缩标题页避免溢出 */
@@ -509,16 +557,20 @@
     .hlist{max-height:60%}
     .cgrid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:54%}
     .mcard .mdesc{display:none}
-    /* 升级三选一：竖屏压成两列紧凑卡，避免被裁切 */
-    #upgradeScreen .cards{gap:1vmin;width:100%;max-height:62%;overflow:auto;align-content:center}
-    #upgradeScreen .card{width:clamp(140px,44%,230px);padding:1.2vmin 1.3vmin}
+    .agrid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:54%}
+    .acard .adesc{min-height:0}
+    .acard .akind{display:none}
+    /* 升级三选一：竖屏压缩卡面文字，三张并排且留出间距 */
+    #upgradeScreen .cards{gap:clamp(10px,2.6vmin,18px);width:100%}
+    #upgradeScreen .cardwrap{gap:clamp(8px,1.6vmin,14px)}
+    #upgradeScreen .card{width:100%;padding:1.2vmin 1.3vmin}
     #upgradeScreen .cmax, #upgradeScreen .rartag{display:none}
     #upgradeScreen .cname{font-size:13px;letter-spacing:.04em}
     #upgradeScreen .cdesc{min-height:0;font-size:10px;line-height:1.5}
     #upgradeScreen .buildline{display:none}
     #upgradeScreen .cardwrap{gap:1vmin}
     #upgradeScreen .flipbtn{width:38px;height:38px}
-    #upgradeScreen .rrbadge{min-width:16px;height:16px;line-height:14px;font-size:9px}
+    #upgradeScreen .rr-token{font-size:10px}
   }
 </style>
 </head>
@@ -554,12 +606,21 @@
       <button class="btn" id="startBtn">开始（空格）</button>
       <button class="btn ghost" id="histBtn">历史记录</button>
       <button class="btn ghost" id="codexBtn">怪物图鉴</button>
+      <button class="btn ghost" id="achBtn">成就</button>
     </div>
     <div class="hint"><span>WASD / 方向键 移动　·　空格 冲刺　·　P 暂停　·　M 静音</span><br class="hideline" /><span class="line2">升级时按 1 / 2 / 3 选择　·　手机端：左下摇杆 + 右下冲刺</span></div>
   </div>
 
   <div id="upgradeScreen" class="layer hidden">
     <div class="sub" style="letter-spacing:.3em;color:#ffe066">LEVEL UP</div>
+    <div id="rrToken" class="rr-token" title="三张卡共用的换牌机会">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+      <span>换牌机会</span><b id="rerollCount">×0</b>
+    </div>
     <div class="cards" id="cards"></div>
     <div class="buildline" id="buildLine"></div>
   </div>
@@ -603,6 +664,14 @@
     <div class="cgrid" id="codexGrid"></div>
     <div class="cnote" id="codexNote"></div>
     <button class="btn" id="codexBackBtn">返回（Esc）</button>
+  </div>
+
+  <div id="achScreen" class="layer hidden">
+    <div class="sub" style="letter-spacing:.3em;color:#ffe066">ACHIEVEMENTS</div>
+    <h1 style="font-size:clamp(18px,3.2vmin,38px)">成 就 殿 堂</h1>
+    <div class="agrid" id="achGrid"></div>
+    <div class="anote" id="achNote"></div>
+    <button class="btn" id="achBackBtn">返回（Esc）</button>
   </div>
 
   <div id="hudBtns">
@@ -1240,7 +1309,7 @@ const splitQueue = [];
 const SPLIT_MAX = 20;   // 分裂小兵同屏上限
 let pendingLevels = 0;
 let shopOptions = [];
-let rerolls = 0;      // 翻牌（重抽）机会，靠击杀掉落获取
+let rerolls = 0;      // 换牌（重抽）机会，靠击杀掉落获取
 let eid = 0;
 
 let player = null;
@@ -1437,9 +1506,10 @@ function resetWorld() {
   bossGen = 0; lastTier = 0; splitQueue.length = 0;
   enemies = []; orbs = []; bullets = []; ebullets = []; drops = [];
   particles = []; trails = []; effects = []; texts = []; marks = [];
-  rerolls = 1;   // 每局开局送一次翻牌机会
+  rerolls = 2;   // 每局开局送两次换牌机会
   eid = 0;
   player = makePlayer();
+  resetAchRun();
 }
 
 function hideLayers() {
@@ -1450,6 +1520,7 @@ function hideLayers() {
   $('#winFx').innerHTML = '';
   $('#historyScreen').classList.add('hidden');
   $('#codexScreen').classList.add('hidden');
+  $('#achScreen').classList.add('hidden');
 }
 
 function startGame() {
@@ -1657,6 +1728,140 @@ function closeCodex() {
   if (state === 'menu') layers.title.classList.remove('hidden');
 }
 
+/* ============================================================
+   成就殿堂（永久解锁，单局追踪）
+   ============================================================ */
+const AKEY = 'pixelDash.ach.v1';
+const ASKEY = 'pixelDash.astats.v1';
+
+function loadAchStore() {
+  try {
+    const o = JSON.parse(localStorage.getItem(AKEY) || '{}');
+    return o && typeof o === 'object' && !Array.isArray(o) ? o : {};
+  } catch (e) { return {}; }
+}
+function saveAchStore() {
+  try { localStorage.setItem(AKEY, JSON.stringify(achUnlocked)); } catch (e) {}
+}
+function loadAchStats() {
+  try {
+    const o = JSON.parse(localStorage.getItem(ASKEY) || '{}');
+    return { boss: Math.max(0, Math.floor(Number(o.boss) || 0)) };
+  } catch (e) { return { boss: 0 }; }
+}
+function saveAchStats() {
+  try { localStorage.setItem(ASKEY, JSON.stringify(achStats)); } catch (e) {}
+}
+
+let achUnlocked = loadAchStore();
+let achStats = loadAchStats();
+let achRun = null;
+
+/* 正面：荣耀；整活：黑历史。名字要够狠，条件要够损。 */
+const ACHS = [
+  { id: 'edge',    name: '开刃',       kind: 'pos', desc: '单局击杀 50 个敌人',                  cond: (r) => r.kills >= 50 },
+  { id: 'blood',   name: '血洗',       kind: 'pos', desc: '单局击杀 200 个敌人',                 cond: (r) => r.kills >= 200 },
+  { id: 'behead',  name: '枭首',       kind: 'pos', desc: '累计击杀 1 只 BOSS',                  cond: (r, s) => s.boss >= 1 },
+  { id: 'dragon',  name: '屠龙',       kind: 'pos', desc: '累计击杀 5 只 BOSS',                  cond: (r, s) => s.boss >= 5 },
+  { id: 'crush',   name: '碾碎精英',   kind: 'pos', desc: '单局击杀 8 只精英（词缀怪）',          cond: (r) => r.elites >= 8 },
+  { id: 'storm',   name: '腥风血雨',   kind: 'pos', desc: '3 秒内连续击杀 12 个敌人',             cond: (r) => r.killTimes.length >= 12 },
+  { id: 'legend',  name: '五分钟神话', kind: 'pos', desc: '撑过 5 分钟，通关本局',                cond: (r, s, c) => !!c.win },
+  { id: 'slayer',  name: '三千暴徒',   kind: 'pos', desc: '单局得分达到 3000',                   cond: () => calcScore() >= 3000 },
+
+  { id: 'coward',  name: '怯战蜥蜴',   kind: 'neg', desc: '连续 30 秒没有击杀任何敌人',           cond: (r) => time - r.lastKill >= 30 },
+  { id: 'vanish',  name: '人间蒸发',   kind: 'neg', desc: '连续 60 秒没有受到任何伤害',           cond: (r) => r.noHitT >= 60 },
+  { id: 'instant', name: '闪电暴毙',   kind: 'neg', desc: '开局 10 秒内死亡',                    cond: (r, s, c) => !!c.dead && (c.time || time) < 10 },
+  { id: 'rooted',  name: '脚下生根',   kind: 'neg', desc: '存活 30 秒，移动距离不足 300 像素',    cond: (r) => time >= 30 && r.dist < 300 },
+  { id: 'salted',  name: '咸鱼之王',   kind: 'neg', desc: '存活 90 秒，一次冲刺都没用',           cond: (r) => time >= 90 && r.dashes === 0 },
+  { id: 'ironhead',name: '铁头功',     kind: 'neg', desc: '单局被敌人击中 12 次',                 cond: (r) => r.hits >= 12 },
+  { id: 'spendthrift', name: '散财童子', kind: 'neg', desc: '死亡时还剩至少 3 次换牌机会',         cond: (r, s, c) => !!c.dead && rerolls >= 3 },
+  { id: 'scavenger', name: '拾荒之王', kind: 'neg', desc: '单局拾取 100 颗经验球',                cond: (r) => r.orbs >= 100 },
+];
+
+function resetAchRun() {
+  achRun = {
+    kills: 0, elites: 0, dashes: 0, hits: 0, orbs: 0,
+    noHitT: 0, lastKill: 0, dist: 0, killTimes: [],
+    lastX: player ? player.x : 0, lastY: player ? player.y : 0,
+  };
+}
+
+function achDate(ts) {
+  const d = new Date(ts);
+  const p2 = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+
+function unlockAch(id, silent) {
+  if (achUnlocked[id]) return null;
+  const a = ACHS.find((x) => x.id === id);
+  if (!a) return null;
+  achUnlocked[id] = Date.now();
+  saveAchStore();
+  if (!silent) {
+    toast('成就解锁 · ' + a.name, a.kind === 'neg');
+    blip(920, 0.12, 'triangle', 0.07, 90);
+    setTimeout(() => blip(1240, 0.16, 'triangle', 0.06, 80), 120);
+  }
+  return a.name;
+}
+
+function checkAch(silent, ctx) {
+  if (!achRun || !player) return [];
+  const c = ctx || {};
+  const out = [];
+  for (const a of ACHS) {
+    if (achUnlocked[a.id]) continue;
+    if (a.cond(achRun, achStats, c)) {
+      const n = unlockAch(a.id, silent);
+      if (n) out.push(n);
+    }
+  }
+  return out;
+}
+
+/* 每帧追踪：无伤时长 + 累计移动距离 */
+function achTrack(dt) {
+  if (!achRun || !player || state !== 'playing') return;
+  achRun.noHitT += dt;
+  const dx = player.x - achRun.lastX, dy = player.y - achRun.lastY;
+  achRun.dist += Math.hypot(dx, dy);
+  achRun.lastX = player.x; achRun.lastY = player.y;
+  checkAch();
+}
+
+function renderAch() {
+  const grid = $('#achGrid');
+  grid.innerHTML = ACHS.map((a) => {
+    const ts = achUnlocked[a.id];
+    const un = !!ts;
+    return '<div class="acard ' + a.kind + ' ' + (un ? 'unlocked' : 'locked') + '">' +
+      '<div class="atop"><span class="aseal">' + (a.kind === 'pos' ? '正' : '整') + '</span>' +
+        '<div><div class="aname">' + (un ? a.name : '？？？') + '</div>' +
+        '<div class="akind">' + (a.kind === 'pos' ? '正面 · 荣耀' : '整活 · 黑历史') + '</div></div></div>' +
+      '<div class="adesc">' + a.desc + '</div>' +
+      '<div class="adate">' + (un ? '已解锁 · ' + achDate(ts) : '未解锁') + '</div>' +
+    '</div>';
+  }).join('');
+  const total = ACHS.length;
+  const n = ACHS.filter((a) => achUnlocked[a.id]).length;
+  const pos = ACHS.filter((a) => a.kind === 'pos' && achUnlocked[a.id]).length;
+  const neg = ACHS.filter((a) => a.kind === 'neg' && achUnlocked[a.id]).length;
+  $('#achNote').textContent = '已解锁 ' + n + ' / ' + total +
+    '　·　正面 ' + pos + ' / ' + ACHS.filter((a) => a.kind === 'pos').length +
+    '　·　整活 ' + neg + ' / ' + ACHS.filter((a) => a.kind === 'neg').length;
+}
+
+function openAch() {
+  renderAch();
+  layers.title.classList.add('hidden');
+  $('#achScreen').classList.remove('hidden');
+}
+function closeAch() {
+  $('#achScreen').classList.add('hidden');
+  if (state === 'menu') layers.title.classList.remove('hidden');
+}
+
 const CONF_COLORS = ['#ffe066', '#63d9ff', '#ff4d6d', '#7dffb0', '#b57bff', '#ff9a6b', '#ffffff'];
 function spawnConfetti() {
   const box = $('#winFx');
@@ -1688,6 +1893,8 @@ function endGame(win, quit) {
     level: player.level, won: win, date: Date.now(), diff: diffKey,
   });
   const best = bestRecord();
+  /* 结算时判定「死亡/通关」类成就，解锁结果直接写进结算面板 */
+  const newAch = checkAch(true, { ending: true, dead: !win && !quit, win, time, quit });
 
   $('#endTitle').textContent = quit ? '本局结束' : win ? '撑过了 5 分钟' : '你被淹没了';
   $('#endTitle').style.color = quit ? '#93a4c9' : win ? '#ffe066' : '#ff4d6d';
@@ -1696,6 +1903,7 @@ function endGame(win, quit) {
     ' ｜ 存活 <b style="color:#63d9ff">' + fmt(time) + '</b>' +
     ' ｜ 击杀 <b style="color:#ff4d6d">' + kills + '</b>' +
     ' ｜ 等级 <b style="color:#ffe066">' + player.level + '</b>' +
+    (newAch.length ? '<span class="ach-line" style="color:#ffe066"><br />✦ 新成就 · ' + newAch.join(' · ') + '</span>' : '') +
     (newBest ? '<span class="nb-line" style="color:#ffe066"><br />★ 新纪录！</span>' : '') +
     '<span class="best-line" style="color:#6f80a6"><br />难度 <b style="color:' + diff.col + '">' + diff.name + '</b>' +
       '　·　历史最佳 ' + best.score + ' 分</span>';
@@ -1719,6 +1927,7 @@ window.addEventListener('keydown', (e) => {
   keys[k] = true;
 
   if (k === 'escape' && !$('#codexScreen').classList.contains('hidden')) { closeCodex(); return; }
+  if (k === 'escape' && !$('#achScreen').classList.contains('hidden')) { closeAch(); return; }
   if (k === 'escape' && !$('#historyScreen').classList.contains('hidden')) { closeHistory(); return; }
   if (k === 'p') { setPaused(!paused); return; }
   if (k === 'escape' && paused) { setPaused(false); return; }
@@ -1954,7 +2163,9 @@ $('#retryBtn').addEventListener('click', startGame);
 $('#endMenuBtn').addEventListener('click', goMenu);
 $('#histBtn').addEventListener('click', openHistory);
 $('#codexBtn').addEventListener('click', openCodex);
+$('#achBtn').addEventListener('click', openAch);
 $('#codexBackBtn').addEventListener('click', closeCodex);
+$('#achBackBtn').addEventListener('click', closeAch);
 $('#histBackBtn').addEventListener('click', closeHistory);
 
 /* 难度选择 */
@@ -2007,6 +2218,7 @@ function tryDash() {
   }
 
   p.dashCharges -= 1;
+  if (achRun) achRun.dashes += 1;
   p.dashT = p.stats.dashTime;
   p.invuln = Math.max(p.invuln, p.stats.dashTime + 0.2 + p.stats.invulnBonus);
   p.dashDx = dx; p.dashDy = dy;
@@ -2170,11 +2382,21 @@ function killEnemy(e) {
   if (e.dead) return;
   e.dead = true;
   kills += 1;
+  /* 成就追踪：击杀数 / 精英 / BOSS / 3 秒连杀窗口 */
+  if (achRun) {
+    achRun.kills += 1;
+    achRun.lastKill = time;
+    achRun.killTimes.push(time);
+    while (achRun.killTimes.length && time - achRun.killTimes[0] > 3) achRun.killTimes.shift();
+    if (e.affix) achRun.elites += 1;
+    if (e.type === 'boss') { achRun.bosses += 1; achStats.boss += 1; saveAchStats(); }
+  }
+  checkAch();
   const t = ETYPES[e.type];
   const pts = Math.round((e.pts || t.pts) * player.stats.scoreMul * (e.affix ? 2.5 : 1));
   killScore += pts;
   orbs.push({ x: e.x, y: e.y, v: e.affix ? Math.max(2, t.xp * 2) : t.xp, r: 2.2, dead: false });
-  // 翻牌机会掉落：普通怪小概率、精英较高、BOSS 必掉
+  // 换牌机会掉落：普通怪小概率、精英较高、BOSS 必掉
   const rrChance = e.type === 'boss' ? 1 : e.affix ? 0.2 : 0.03;
   if (rerolls + drops.length < 6 && Math.random() < rrChance) {
     drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false });
@@ -2243,6 +2465,8 @@ function hitPlayer(src) {
   }
 
   p.hp -= (src.dmg || 1);
+  if (achRun) { achRun.hits += 1; achRun.noHitT = 0; }
+  checkAch();
   p.invuln = diff.invuln;
   p.flash = 0.12;
   shake = Math.max(shake, 7);
@@ -2471,7 +2695,7 @@ function gainXP(n) {
   if (pendingLevels > 0 && state === 'playing') openUpgrade();
 }
 
-/* 翻牌机会：靠近吸附，碰到即收集 */
+/* 换牌机会：靠近吸附，碰到即收集 */
 function updateDrops(dt) {
   const p = player;
   for (const d of drops) {
@@ -2486,7 +2710,7 @@ function updateDrops(dt) {
     if (dist < 8) {
       d.dead = true;
       rerolls = Math.min(6, rerolls + 1);
-      toast('翻牌机会 +1');
+      toast('换牌机会 +1');
       blip(980, 0.06, 'triangle', 0.05, 220);
       effects.push({ x: d.x, y: d.y, r: 8, life: 0.2, max: 0.2, color: '#ffe066' });
       burst(d.x, d.y, '#ffe066', 6, 40);
@@ -2509,6 +2733,7 @@ function updateOrbs(dt) {
     o.y += (dy / d) * speed * dt;
     if (d < 7) {
       o.dead = true;
+      if (achRun) { achRun.orbs += 1; checkAch(); }
       gainXP(o.v);
       if (state !== 'playing') return;
       // 连吃多颗时音高递进，反馈更“顺”
@@ -2657,6 +2882,7 @@ function update(dt) {
   if (!endless && time >= WIN_TIME) { endGame(true); return; }
   updatePlayer(dt);
   if (state !== 'playing') return;
+  achTrack(dt);
 
   updateEnemies(dt);
   if (state !== 'playing') return;
@@ -2749,13 +2975,17 @@ function renderUpgradeUI(flipIndex) {
     btn.title = canFlip ? ('换掉这张牌 · 剩 ' + rerolls + ' 次')
       : (hasAlt ? '没有换牌机会了' : '没有可替换的强化');
     btn.setAttribute('aria-label', btn.title);
-    btn.innerHTML = RR_ICON + '<span class="rrbadge">' + rerolls + '</span>';
+    btn.innerHTML = RR_ICON;
     btn.addEventListener('click', (ev) => { ev.stopPropagation(); flipCard(i); });
 
     wrap.appendChild(el);
     wrap.appendChild(btn);
     box.appendChild(wrap);
   });
+
+  /* 换牌机会是全局共用的，只在下方显示一处标记 */
+  $('#rerollCount').textContent = '×' + rerolls;
+  $('#rrToken').classList.toggle('empty', !canFlip);
 
   const owned = UPGRADES.filter((u) => player.upg[u.id]);
   $('#buildLine').innerHTML = owned.length
