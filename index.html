@@ -1130,9 +1130,25 @@ function audio() {
   }
   return AC;
 }
+/* 移动端/浏览器策略：AudioContext 初始为 suspended，必须在用户手势里 resume 才会有声 */
+function resumeAudio(a) {
+  try {
+    const r = a.resume();
+    if (r && r.catch) r.catch(() => {});
+  } catch (e) {}
+}
+function unlockAudio() {
+  const a = audio();
+  if (a && a.state === 'suspended') resumeAudio(a);
+}
+['pointerdown', 'touchstart', 'touchend', 'keydown'].forEach((t) =>
+  document.addEventListener(t, unlockAudio, { passive: true }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) unlockAudio(); });
+
 function blip(freq, dur, type, vol, slide) {
   if (muted) return;
   const a = audio(); if (!a) return;
+  if (a.state === 'suspended') resumeAudio(a);
   try {
     const o = a.createOscillator(), g = a.createGain();
     o.type = type || 'square';
@@ -1376,6 +1392,7 @@ function startGame() {
   audio();
   lastTs = performance.now();
   blip(520, 0.08, 'triangle', 0.05, 320);
+  if (muted) toast('音效静音中 · 点右上角喇叭开启');
 }
 
 function goMenu() {
