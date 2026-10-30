@@ -1958,6 +1958,9 @@ const fmt = (t) => {
    ============================================================ */
 let AC = null, muted = false;
 const MUTE_KEY = 'pixelDash.muted';
+/* 音效总音量倍数：BGM 固定在 #bgm 的 0.42，音效单次增益都写得很小，
+   统一在这里放大，避免逐个改 30 处调用点 */
+const SFX_GAIN = 2.5;
 function audio() {
   if (!AC) {
     try { AC = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -1989,7 +1992,8 @@ function blip(freq, dur, type, vol, slide) {
     o.type = type || 'square';
     o.frequency.setValueAtTime(freq, a.currentTime);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), a.currentTime + dur);
-    g.gain.setValueAtTime(vol || 0.05, a.currentTime);
+    const v = clamp((vol || 0.05) * SFX_GAIN, 0, 1);
+    g.gain.setValueAtTime(v, a.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
     o.connect(g); g.connect(a.destination);
     o.start(); o.stop(a.currentTime + dur);
