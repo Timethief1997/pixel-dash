@@ -182,27 +182,24 @@
     margin-top:.8vmin;font-size:clamp(8px,1.1vmin,12px);letter-spacing:.2em;color:#7f8fb3;
     font-family:var(--mono);
   }
-  /* ---- 换一批 ---- */
-  #rerollBar{display:flex;flex-direction:column;align-items:center;gap:.75vmin}
-  .rbtn{
-    appearance:none;display:inline-flex;align-items:center;gap:.7vmin;cursor:pointer;
-    font:inherit;font-size:clamp(11px,1.5vmin,17px);letter-spacing:.12em;font-weight:600;
-    color:#ffe066;padding:.75vmin 2.2vmin;border-radius:var(--r-md);
-    border:1px solid rgba(255,224,102,.45);
-    background:linear-gradient(180deg, rgba(255,224,102,.16), rgba(255,224,102,.03));
-    box-shadow:0 6px 16px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.08);
-    transition:transform .14s, border-color .14s, background .14s, opacity .14s, box-shadow .14s;
+  /* ---- 换牌：每张卡下方单独一个翻转按钮 ---- */
+  #rrLine{
+    font-size:clamp(9px,1.2vmin,14px);letter-spacing:.14em;color:#ffe066;
+    font-family:var(--mono);opacity:.9;
   }
-  .rbtn:hover{transform:translateY(-2px);border-color:#ffe066;
-    background:linear-gradient(180deg, rgba(255,224,102,.3), rgba(255,224,102,.07))}
-  .rbtn:active{transform:translateY(0) scale(.97)}
-  .rbtn:disabled{opacity:.32;cursor:default;transform:none;color:#8f8663;
-    border-color:rgba(255,224,102,.2);box-shadow:none}
-  .rbtn .rico{font-size:1.2em;line-height:1;display:inline-block}
-  .rbtn:hover .rico{transform:rotate(18deg);transition:transform .18s}
-  .rbtn b{font-family:var(--mono);font-size:.92em;color:#fff}
-  .rtip{font-size:clamp(9px,1.15vmin,13px);color:#6f80a6;font-family:var(--mono);letter-spacing:.04em}
-  #cards.spin .card{animation:cardFlip .32s cubic-bezier(.2,.9,.3,1.25) both}
+  #rrLine b{color:#fff;font-weight:700}
+  .flipbtn{
+    display:block;width:100%;margin-top:.85vmin;appearance:none;cursor:pointer;
+    font:inherit;font-family:var(--mono);font-size:clamp(9px,1.15vmin,13px);letter-spacing:.1em;
+    color:#ffe066;padding:.45vmin .6vmin;border-radius:var(--r-sm);
+    border:1px dashed rgba(255,224,102,.42);background:rgba(255,224,102,.07);
+    transition:background .15s, border-color .15s, transform .15s, opacity .15s;
+  }
+  .flipbtn:hover{background:rgba(255,224,102,.2);border-color:#ffe066;transform:translateY(-1px)}
+  .flipbtn:active{transform:scale(.98)}
+  .flipbtn:disabled{opacity:.28;cursor:default;transform:none;color:#8f8663;
+    border-color:rgba(255,224,102,.18);background:rgba(255,224,102,.03)}
+  .card.flip{animation:cardFlip .34s cubic-bezier(.2,.9,.3,1.25) both}
   @keyframes cardFlip{
     from{transform:rotateY(86deg) scale(.96);opacity:.2}
     to{transform:none;opacity:1}
@@ -509,8 +506,8 @@
     #upgradeScreen .cname{font-size:13px;letter-spacing:.04em}
     #upgradeScreen .cdesc{min-height:0;font-size:10px;line-height:1.5}
     #upgradeScreen .buildline{display:none}
-    #upgradeScreen .rtip{display:none}
-    #upgradeScreen .rbtn{font-size:11px;padding:.7vmin 1.8vmin}
+    #upgradeScreen #rrLine{font-size:10px;letter-spacing:.08em}
+    #upgradeScreen .flipbtn{font-size:10px;padding:.5vmin .4vmin;margin-top:.7vmin}
   }
 </style>
 </head>
@@ -547,16 +544,13 @@
       <button class="btn ghost" id="histBtn">历史记录</button>
       <button class="btn ghost" id="codexBtn">怪物图鉴</button>
     </div>
-    <div class="hint"><span>WASD / 方向键 移动　·　空格 冲刺　·　P 暂停　·　M 静音</span><br class="hideline" /><span class="line2">升级时按 1 / 2 / 3 选择　·　R 换一批　·　手机端：左下摇杆 + 右下冲刺</span></div>
+    <div class="hint"><span>WASD / 方向键 移动　·　空格 冲刺　·　P 暂停　·　M 静音</span><br class="hideline" /><span class="line2">升级时按 1 / 2 / 3 选择　·　手机端：左下摇杆 + 右下冲刺</span></div>
   </div>
 
   <div id="upgradeScreen" class="layer hidden">
     <div class="sub" style="letter-spacing:.3em;color:#ffe066">LEVEL UP</div>
+    <div id="rrLine">↻ 换牌机会 <b id="rerollCount">0</b></div>
     <div class="cards" id="cards"></div>
-    <div id="rerollBar">
-      <button class="rbtn" id="rerollBtn"><span class="rico">↻</span> 换一批 <b id="rerollCount">0</b></button>
-      <span class="rtip">点箭头或按 R 随机换三张（靠击杀掉落获得）</span>
-    </div>
     <div class="buildline" id="buildLine"></div>
   </div>
 
@@ -575,8 +569,12 @@
   <div id="pauseScreen" class="layer hidden">
     <div class="sub" style="letter-spacing:.3em;color:#93a4c9">PAUSED</div>
     <h1 style="font-size:clamp(20px,3.6vmin,44px)">已 暂 停</h1>
-    <button class="btn" id="resumeBtn">继续（P）</button>
-    <div class="hint">按 P / Esc 继续　·　右上角可全屏</div>
+    <div style="display:flex;gap:1.4vmin;flex-wrap:wrap;justify-content:center">
+      <button class="btn" id="resumeBtn">继续（P）</button>
+      <button class="btn ghost" id="giveUpBtn">结束本局</button>
+      <button class="btn ghost" id="quitBtn">返回主菜单</button>
+    </div>
+    <div class="hint">按 P / Esc 继续　·　结束本局会直接结算</div>
   </div>
 
   <div id="historyScreen" class="layer hidden">
@@ -1669,7 +1667,7 @@ function winJingle() {
   });
 }
 
-function endGame(win) {
+function endGame(win, quit) {
   if (state !== 'playing') return;
   state = win ? 'won' : 'dead';
   const score = calcScore();
@@ -1681,8 +1679,8 @@ function endGame(win) {
   });
   const best = bestRecord();
 
-  $('#endTitle').textContent = win ? '撑过了 5 分钟' : '你被淹没了';
-  $('#endTitle').style.color = win ? '#ffe066' : '#ff4d6d';
+  $('#endTitle').textContent = quit ? '本局结束' : win ? '撑过了 5 分钟' : '你被淹没了';
+  $('#endTitle').style.color = quit ? '#93a4c9' : win ? '#ffe066' : '#ff4d6d';
   $('#endStats').innerHTML =
     '得分 <b style="color:#ffe066" title="已计入难度倍率 ×' + diff.score.toFixed(2) + '">' + score + '</b>' +
     ' ｜ 存活 <b style="color:#63d9ff">' + fmt(time) + '</b>' +
@@ -1721,7 +1719,6 @@ window.addEventListener('keydown', (e) => {
   if ((state === 'dead' || state === 'won') && k === 'escape') { goMenu(); return; }
   if (state === 'playing' && k === ' ') { tryDash(); return; }
   if (state === 'upgrade' && (k === '1' || k === '2' || k === '3')) { chooseIndex(Number(k) - 1); return; }
-  if (state === 'upgrade' && k === 'r') { doReroll(); return; }
 });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -1944,7 +1941,6 @@ if (touchMode) document.body.classList.add('touch');
 
 $('#startBtn').addEventListener('click', startGame);
 $('#retryBtn').addEventListener('click', startGame);
-$('#rerollBtn').addEventListener('click', (e) => { e.preventDefault(); doReroll(); });
 $('#endMenuBtn').addEventListener('click', goMenu);
 $('#histBtn').addEventListener('click', openHistory);
 $('#codexBtn').addEventListener('click', openCodex);
@@ -1968,6 +1964,15 @@ $('#endlessBtn').addEventListener('click', () => {
   state = 'playing';
   layers.end.classList.add('hidden');
   lastTs = performance.now();
+});
+/* 暂停菜单：结束本局（直接结算）/ 返回主菜单 */
+$('#giveUpBtn').addEventListener('click', () => {
+  setPaused(false);
+  endGame(false, true);
+});
+$('#quitBtn').addEventListener('click', () => {
+  setPaused(false);
+  goMenu();
 });
 
 /* ============================================================
@@ -2701,30 +2706,28 @@ function openUpgrade() {
   blip(600, 0.1, 'triangle', 0.05, 260);
 }
 
-function renderUpgradeUI(spin) {
+function renderUpgradeUI(flipIndex) {
   const box = $('#cards');
   box.innerHTML = '';
-  box.classList.remove('spin');
+  const hasAlt = UPGRADES.some((u) => (player.upg[u.id] || 0) < u.max && !shopOptions.some((o) => o.id === u.id));
   shopOptions.forEach((u, i) => {
     const lvl = player.upg[u.id] || 0;
     const el = document.createElement('div');
-    el.className = 'card r' + u.rar;
+    el.className = 'card r' + u.rar + (flipIndex === i ? ' flip' : '');
     el.innerHTML =
       '<div class="kbd">' + (i + 1) + '</div>' +
       '<div class="cname">' + u.name + '</div>' +
       '<div class="cmax">Lv.' + lvl + ' → ' + (lvl + 1) + ((lvl + 1 === u.max) ? ' · 满级' : '') + '</div>' +
       '<div class="cdesc">' + u.desc + '</div>' +
-      '<div class="rartag">' + (u.rar === 3 ? 'EPIC · 史诗' : u.rar === 2 ? 'RARE · 稀有' : 'COMMON · 常见') + '</div>';
+      '<div class="rartag">' + (u.rar === 3 ? 'EPIC · 史诗' : u.rar === 2 ? 'RARE · 稀有' : 'COMMON · 常见') + '</div>' +
+      '<button class="flipbtn" type="button"' + (rerolls > 0 && hasAlt ? '' : ' disabled') + '>↻ 换这张</button>';
     el.addEventListener('click', () => chooseIndex(i));
+    const btn = el.querySelector('.flipbtn');
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); flipCard(i); });
     box.appendChild(el);
   });
-  if (spin) {
-    box.classList.add('spin');
-    setTimeout(() => box.classList.remove('spin'), 340);
-  }
 
   $('#rerollCount').textContent = String(rerolls);
-  $('#rerollBtn').disabled = rerolls <= 0;
 
   const owned = UPGRADES.filter((u) => player.upg[u.id]);
   $('#buildLine').innerHTML = owned.length
@@ -2732,14 +2735,14 @@ function renderUpgradeUI(spin) {
     : '当前构筑：空';
 }
 
-/* 换一批：消耗一次翻牌机会，随机换成另外三张 */
-function doReroll() {
+/* 单张翻转：消耗一次机会，只把这一张换成别的选项 */
+function flipCard(i) {
   if (state !== 'upgrade' || rerolls <= 0) return;
-  const avail = UPGRADES.filter((u) => (player.upg[u.id] || 0) < u.max);
+  const avail = UPGRADES.filter((u) => (player.upg[u.id] || 0) < u.max && !shopOptions.some((o) => o.id === u.id));
   if (!avail.length) return;
   rerolls -= 1;
-  shopOptions = rollOptions(avail, 3);
-  renderUpgradeUI(true);
+  shopOptions[i] = rollOptions(avail, 1)[0];
+  renderUpgradeUI(i);
   blip(780, 0.06, 'square', 0.05, 150);
 }
 
