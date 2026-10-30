@@ -218,6 +218,25 @@
     transition:opacity .14s ease;
   }
   #stick.on{opacity:1}
+  #stickTicks,#stickDir{position:absolute;inset:0;border-radius:50%;pointer-events:none}
+  /* 8 向刻度 */
+  #stickTicks{
+    background:repeating-conic-gradient(from 0deg, rgba(99,217,255,.34) 0 1.2deg, transparent 1.2deg 45deg);
+    -webkit-mask:radial-gradient(circle closest-side, transparent 0 81%, #000 82% 90%, transparent 91%);
+    mask:radial-gradient(circle closest-side, transparent 0 81%, #000 82% 90%, transparent 91%);
+  }
+  /* 当前选定的 45° 方位弧带（画在底座外沿，避免被旋钮挡住） */
+  #stickDir{
+    inset:-16%;border-radius:50%;
+    background:conic-gradient(from 67.5deg,
+      rgba(99,217,255,.72) 0deg 1.8deg,
+      rgba(99,217,255,.26) 1.8deg 45deg,
+      rgba(99,217,255,0) 45deg 360deg);
+    -webkit-mask:radial-gradient(circle closest-side, transparent 0 78%, #000 79% 90%, transparent 91%);
+    mask:radial-gradient(circle closest-side, transparent 0 78%, #000 79% 90%, transparent 91%);
+    opacity:0;transition:opacity .12s ease;transform-origin:50% 50%;
+  }
+  #stick.active #stickDir{opacity:1}
   #knob{
     position:absolute;left:50%;top:50%;width:36%;height:36%;margin:-18% 0 0 -18%;
     border-radius:50%;background:rgba(99,217,255,.42);border:2px solid rgba(255,255,255,.55);
@@ -554,7 +573,11 @@
   </div>
 
   <div id="mobileControls">
-    <div id="stickZone"><div id="stick"><div id="knob"></div></div></div>
+    <div id="stickZone"><div id="stick">
+      <div id="stickTicks"></div>
+      <div id="stickDir"></div>
+      <div id="knob"></div>
+    </div></div>
     <button id="dashBtn">冲刺</button>
   </div>
 
@@ -1795,6 +1818,7 @@ document.addEventListener('visibilitychange', () => {
 
 /* ---- 虚拟摇杆（浮动底座 + 8 向滞回 + 幅度调速） ---- */
 const stickEl = $('#stick'), knobEl = $('#knob'), stickZone = $('#stickZone');
+const stickDirEl = $('#stickDir');
 let stickId = null, stickAnchor = null, stickLock = -1, stickMag = 0;
 const STICK_DEAD = 0.18;   // 死区：占最大偏移的比例（半径内不响应）
 const STICK_HYST = 10;     // 方向切换滞回（度），防止边界抖动导致 45° 跳变
@@ -1823,6 +1847,7 @@ function stickMove(cx, cy) {
   knobEl.style.transform = `translate(${(ux * cl).toFixed(1)}px,${(uy * cl).toFixed(1)}px)`;
   if (len < max * STICK_DEAD) {          // 半径死区：轻触不动
     stickMag = 0;
+    stickEl.classList.remove('active');
     keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
     return;
   }
@@ -1831,25 +1856,33 @@ function stickMove(cx, cy) {
   const [sx, sy] = stickDir(deg);
   keys['a'] = sx < -0.01; keys['d'] = sx > 0.01;
   keys['w'] = sy < -0.01; keys['s'] = sy > 0.01;
+  stickShowDir(stickLock * 45);
+}
+
+/* 方位提示：底座内圈的 45° 弧带跟随当前 8 向 */
+function stickShowDir(deg) {
+  stickDirEl.style.transform = 'rotate(' + deg + 'deg)';
+  stickEl.classList.add('active');
 }
 
 /* 按下处即零点：底座跟着手指生成，方向看相对位移 */
 function stickShow(cx, cy) {
   const zr = stickZone.getBoundingClientRect();
   const size = stickEl.offsetWidth || 100;
-  const half = size / 2 + 4;
+  const half = size / 2 + 14;   // 外沿方位弧带也需要留出空间
   const px = Math.min(Math.max(cx, zr.left + half), zr.left + zr.width - half);
   const py = Math.min(Math.max(cy, zr.top + half), zr.top + zr.height - half);
   stickEl.style.left = (px - zr.left) + 'px';
   stickEl.style.top = (py - zr.top) + 'px';
   stickEl.classList.add('on');
+  stickEl.classList.remove('active');
   stickAnchor = { x: px, y: py };
   knobEl.style.transform = 'translate(0px,0px)';
 }
 
 function stickReset() {
   stickId = null; stickAnchor = null; stickLock = -1; stickMag = 0;
-  stickEl.classList.remove('on');
+  stickEl.classList.remove('on', 'active');
   stickEl.style.left = ''; stickEl.style.top = '';
   knobEl.style.transform = '';
   keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
