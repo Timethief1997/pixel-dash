@@ -1,0 +1,16 @@
+{
+  "name": "PIXEL DASH · 像素冲刺",
+  "short_name": "PIXEL DASH",
+  "description": "只用冲刺穿过敌人的像素肉鸽小游戏",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#07070b",
+  "theme_color": "#07070b",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -2,7 +2,16 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#07070b" />
+<!-- iOS 添加到主屏幕后以独立应用启动，才能真正去掉 Safari 边框 -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PIXEL DASH" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="assets/icon-180.png" />
+<link rel="icon" type="image/png" href="assets/icon-192.png" />
 <title>PIXEL DASH · 像素冲刺</title>
 <style>
   :root{
@@ -24,6 +33,7 @@
   #stage{
     position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
     width:min(100vw, calc(100vh * 16 / 9));aspect-ratio:16/9;max-height:100vh;
+    width:min(100vw, calc(100dvh * 16 / 9));aspect-ratio:16/9;max-height:100dvh;
     border-radius:var(--r-xl);
     box-shadow:0 0 0 1px #1b2233, 0 28px 70px rgba(0,0,0,.6), 0 0 110px rgba(99,217,255,.10);
     overflow:hidden;
@@ -123,7 +133,7 @@
   #endScreen > :not(.winfx){position:relative;z-index:2}
   /* 数据格：得分 / 存活 / 击杀 / 等级 */
   .rgrid{
-    display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;
+    display:grid;grid-template-columns:1.35fr 1fr 1fr 1fr 1.15fr;
     width:100%;border:1px solid rgba(255,226,176,.20);
     border-radius:6px;overflow:hidden;background:rgba(0,0,0,.24);
   }
@@ -143,6 +153,7 @@
   .rval.gold{color:#ffdc7a}
   .rval.hot{color:#ff9f8b}
   .rval.big{font-size:clamp(19px,3.5vmin,33px);letter-spacing:.01em}
+  .rval.coin{font-size:clamp(11px,1.9vmin,18px);color:#ffd76a;letter-spacing:0}
   .rflags{display:flex;flex-direction:column;align-items:center;gap:.45vmin}
   .rflag{font-size:clamp(11px,1.6vmin,15px);letter-spacing:.05em;color:#ffdc7a}
   .rflag.ach{color:#ffcf9a}
@@ -555,6 +566,52 @@
   #shieldPips svg{display:block;width:clamp(11px,2.2vmin,16px);height:auto}
   #shieldPips svg path{fill:rgba(126,240,255,.14);stroke:#7ef0ff;stroke-width:1.2}
   #shieldPips b{font-family:var(--mono);font-size:clamp(9px,1.4vmin,12px);color:#c8f4ff;font-variant-numeric:tabular-nums}
+  /* 状态提示：中毒 / 腐蚀封锁 / 减速 / 冰冻 */
+  #statusPips{display:none;align-items:center;gap:.35vmin}
+  #statusPips.on{display:flex}
+  #statusPips span{
+    font-family:var(--mono);font-size:clamp(8px,1.3vmin,11px);font-weight:700;line-height:1;
+    padding:.22vmin .45vmin;border-radius:3px;border:1px solid;letter-spacing:.02em;
+    animation:statPulse 1s ease-in-out infinite;
+  }
+  #statusPips span.p{color:#b6ff9a;border-color:rgba(158,245,138,.55);background:rgba(80,150,60,.22)}
+  #statusPips span.h{color:#ffe08a;border-color:rgba(255,214,110,.55);background:rgba(150,110,30,.22)}
+  #statusPips span.s{color:#9fd8ff;border-color:rgba(120,200,255,.55);background:rgba(50,110,150,.22)}
+  #statusPips span.f{color:#dff4ff;border-color:rgba(200,240,255,.7);background:rgba(90,150,190,.28)}
+  @keyframes statPulse{0%,100%{opacity:.7}50%{opacity:1}}
+
+  /* iPhone：网页无法原生全屏，改为引导「添加到主屏幕」 */
+  #iosTip{background:rgba(7,9,15,.88);backdrop-filter:blur(8px)}
+  #iosTip .board{
+    max-width:min(86%,560px);gap:2vmin;padding:3.2vmin 3.6vmin;
+  }
+  #iosTip .iosteps{display:flex;flex-direction:column;gap:1.1vmin;text-align:left}
+  #iosTip .iostep{display:flex;align-items:center;gap:1.2vmin;font-size:clamp(12px,1.9vmin,17px);color:#f0dcc0}
+  #iosTip .ion{display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:clamp(20px,3.2vmin,28px);height:clamp(20px,3.2vmin,28px);border-radius:6px;
+    border:1px solid rgba(255,226,176,.35);background:rgba(255,226,176,.10);
+    font-family:var(--mono);font-size:clamp(10px,1.6vmin,14px);color:#ffe8b8}
+  #iosTip .ionow{color:#ffd76a;font-weight:700}
+
+  /* 新手教程提示条 */
+  #tutBox{
+    position:absolute;left:50%;bottom:clamp(42px,10vmin,78px);transform:translateX(-50%);
+    display:flex;align-items:center;gap:1.4vmin;max-width:86%;
+    padding:.7vmin 1.2vmin .7vmin 1.8vmin;border-radius:6px;
+    background:linear-gradient(180deg,rgba(46,30,18,.94),rgba(24,15,9,.96));
+    border:1px solid rgba(255,226,176,.4);
+    box-shadow:0 8px 22px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,232,184,.18);
+    animation:tutIn .3s ease-out both;
+  }
+  #tutBox #tutText{font-size:clamp(11px,1.7vmin,15px);letter-spacing:.03em;color:#ffeccb;white-space:nowrap}
+  #tutSkip{
+    appearance:none;font:inherit;font-family:var(--sans);font-weight:700;cursor:pointer;
+    font-size:clamp(10px,1.4vmin,13px);letter-spacing:.06em;white-space:nowrap;
+    padding:.35vmin .9vmin;border-radius:4px;border:1px solid rgba(140,105,70,.8);
+    background:rgba(84,56,34,.9);color:#ecd9bb;
+  }
+  #tutSkip:hover{border-color:#d8a55e;color:#fff3dd}
+  @keyframes tutIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
   #hudMid{
     position:absolute;left:50%;top:1.15vmin;transform:translateX(-50%);z-index:2;
     gap:.9vmin;padding:.55vmin 1.3vmin .6vmin;white-space:nowrap;
@@ -1106,6 +1163,22 @@
     <div class="setRow"><span class="setLabel">BGM</span><button class="switch on" id="bgmSw" role="switch" aria-checked="true" aria-label="背景音乐开关"><i></i></button></div>
   </div>
 
+  <div id="iosTip" class="layer hidden">
+    <div class="board">
+      <div class="bkicker">F U L L S C R E E N</div>
+      <h1 class="bhead">iPhone 全屏玩法</h1>
+      <div class="iosteps">
+        <div class="iostep"><span class="ion">1</span>点 Safari 底部工具栏的 <b class="ionow">分享</b> 按钮</div>
+        <div class="iostep"><span class="ion">2</span>选择 <b class="ionow">添加到主屏幕</b></div>
+        <div class="iostep"><span class="ion">3</span>从主屏幕图标启动，即可无边框全屏</div>
+      </div>
+      <div class="bhint" id="iosTipNote">网页版 Safari 不支持强制隐藏工具栏。</div>
+      <div class="rbtns">
+        <button class="rbtn primary" id="iosTipClose">知道了</button>
+      </div>
+    </div>
+  </div>
+
   <div id="mobileControls">
     <div id="stickZone"><div id="stick">
       <div id="stickTicks"></div>
@@ -1120,6 +1193,7 @@
       <div id="hudLeft" class="plate">
         <div id="hearts"></div>
         <div id="shieldPips"></div>
+        <div id="statusPips"></div>
       </div>
       <div id="hudMid" class="plate"><span class="dtag" id="diffTag">标准</span><span id="hudTime">00:00</span></div>
       <div id="statBox" class="plate">
@@ -1148,6 +1222,7 @@
     </div>
     <div id="xpWrap"><div id="xpFill"></div></div>
     <div id="hudHint">按住方向键 + 空格 → 冲刺穿过敌人</div>
+    <div id="tutBox" class="hidden"><span id="tutText"></span><button id="tutSkip" type="button">跳过教程</button></div>
   </div>
 </div>
 
@@ -2014,11 +2089,16 @@ const SPLIT_MAX = 20;   // 分裂小兵同屏上限
 let pendingLevels = 0;
 let shopOptions = [];
 let rerolls = 0;      // 换牌（重抽）机会，靠击杀掉落获取
+let coins = 0;        // 单局金币，结算或退出时存入本地
+let nextEvent = 20;   // 无尽模式事件倒计时（秒）
+let frenzyT = 0;      // 狂暴事件剩余时间
 let eid = 0;
 
 let player = null;
 let enemies = [], orbs = [], bullets = [], ebullets = [], drops = [];
 let particles = [], trails = [], effects = [], texts = [], marks = [];
+let hazards = [];     // 地面毒雾 / 腐蚀区域
+let tutorial = null;  // 新手教程状态
 
 const keys = {};
 
@@ -2053,6 +2133,9 @@ const ETYPES = {
   fast:    { hp: 2,  speed: 40, r: 3,  dmg: 1, xp: 1,  pts: 12,  color: '#f0933f', edge: '#94531c' },
   shooter: { hp: 5,  speed: 20, r: 4,  dmg: 1, xp: 2,  pts: 20,  color: '#5ccbe8', edge: '#24708f' },
   tank:    { hp: 14, speed: 15, r: 7,  dmg: 1, xp: 3,  pts: 35,  color: '#a97ed8', edge: '#5a3a80' },
+  poisoner:{ hp: 6,  speed: 18, r: 4,  dmg: 1, xp: 2,  pts: 22,  color: '#7ddc7d', edge: '#2f6b34' },
+  frost:   { hp: 7,  speed: 17, r: 4,  dmg: 1, xp: 2,  pts: 24,  color: '#8fd8ff', edge: '#2f5f86' },
+  bomber:  { hp: 4,  speed: 30, r: 4,  dmg: 2, xp: 0,  pts: 18,  color: '#ffb15c', edge: '#8c4a14' },
   boss:    { hp: 70, speed: 13, r: 11, dmg: 2, xp: 20, pts: 200, color: '#ffe066', edge: '#c9a227' },
 };
 
@@ -2062,8 +2145,9 @@ const AFFIX = {
   split:  { col: '#c08cff' },   // 分裂：死亡时裂成 2 只小兵
   boom:   { col: '#ffa53d' },   // 爆裂：死亡时原地爆炸
   charge: { col: '#ff5d6c' },   // 冲锋：周期性突进
+  corrupt:{ col: '#9ef58a' },   // 腐蚀：光环内封锁吸血
 };
-const AFFIX_IDS = ['shield', 'split', 'boom', 'charge'];
+const AFFIX_IDS = ['shield', 'split', 'boom', 'charge', 'corrupt'];
 /* BOSS 分代外观：颜色逐代加深，逐步长出肩甲、尖角、核心 */
 const BOSS_SKIN = [
   { name: '熔金卫士', col: '#ffe066', edge: '#c9a227', spikes: 3, pauldron: false, horn: false, core: false },
@@ -2096,14 +2180,22 @@ const CODEX = [
     desc: '橙色描边。死亡时原地爆炸，贴身击杀会掉 1 点血；拉开距离再引爆更安全。' },
   { id: 'el_charge', name: '突进者', skill: '冲锋 · 周期突进 ×2.6', pts: 25, icon: { type: 'chaser', affix: 'charge' },
     desc: '红色描边。每 2.2 秒突进一次，速度 2.6 倍；冲锋前描边会变白并冒出「!」，那就是闪避信号。' },
+  { id: 'poisoner', name: '毒囊', skill: '毒球 · 死亡毒雾', pts: 22, icon: { type: 'poisoner' },
+    desc: '绿色毒囊怪。保持距离朝你吐毒球，命中后每秒掉 1 点血且无法吸血；死亡时原地留下一片毒雾，几秒内别踩进去。' },
+  { id: 'frost', name: '霜核', skill: '冰锥 · 减速冰冻', pts: 24, icon: { type: 'frost' },
+    desc: '冰蓝色远程怪。冰锥命中先减速 50%，再中一发会被冻住 0.6 秒；冰冻期间无法移动，但冲刺可以震碎冰冻。' },
+  { id: 'bomber', name: '殉爆虫', skill: '自爆 · 贴身炸', pts: 18, icon: { type: 'bomber' },
+    desc: '橙色小虫，会直接冲到你身边点燃引信，0.6 秒后自爆造成 2 点伤害。自爆不会给分，看到白边加「!」就赶紧冲刺离开。' },
+  { id: 'el_corrupt', name: '腐蚀者', skill: '腐蚀光环 · 封锁吸血', pts: 25, icon: { type: 'chaser', affix: 'corrupt' },
+    desc: '绿色描边。身边 30 范围会持续封锁吸血并附加中毒，专门克制嗜血流；优先拉开距离或用高伤冲刺斩杀。' },
   { id: 'boss1', name: '熔金卫士', skill: '环形弹幕', pts: 200, icon: { type: 'boss', gen: 1 },
     desc: '第 1 代守关者，通体明黄。只有环形弹幕，血量一半进入狂暴，出手更快。' },
-  { id: 'boss2', name: '赤铜重甲', skill: '召唤 + 散射', pts: 200, icon: { type: 'boss', gen: 2 },
-    desc: '第 2 代，金黄并长出两侧肩甲。在环形弹幕之外加入召唤与三连散射；召唤前地面会先亮起预警圈。' },
-  { id: 'boss3', name: '焦土角斗', skill: '冲锋 + 扇形弹幕', pts: 200, icon: { type: 'boss', gen: 3 },
-    desc: '第 3 代，橙色并长出四支尖角。新增冲锋与七发扇形弹幕，冲锋前会亮起白色描边与「!」预警。' },
+  { id: 'boss2', name: '赤铜重甲', skill: '召唤 + 散射 + 毒池', pts: 200, icon: { type: 'boss', gen: 2 },
+    desc: '第 2 代，金黄并长出两侧肩甲。在环形弹幕之外加入召唤、三连散射与毒池；召唤前地面会先亮起预警圈。' },
+  { id: 'boss3', name: '焦土角斗', skill: '冲锋 + 扇形 + 冰锥', pts: 200, icon: { type: 'boss', gen: 3 },
+    desc: '第 3 代，橙色并长出四支尖角。新增冲锋、七发扇形弹幕与冰锥，冰锥会减速并可能冻住你。' },
   { id: 'boss4', name: '终焉赤王', skill: '全招式 + 核心', pts: 200, icon: { type: 'boss', gen: 4 },
-    desc: '第 4 代及以后，赤红并亮起胸口核心。三种招式轮转，每多一代血量 +30%。' },
+    desc: '第 4 代及以后，赤红并亮起胸口核心。全部招式轮转，弹幕伤害提高，每多一代血量 +30%；击杀后清空全场小兵。' },
 ];
 
 /* ---------- 基础属性 ---------- */
@@ -2149,6 +2241,10 @@ function makePlayer() {
     dashKillCount: 0,
     shield: 0, shieldT: 0,
     autoT: 0, trailTick: 0,
+    healCd: 0, healBlock: 0,
+    poisonT: 0, poisonTick: 0,
+    slowT: 0, slowMul: 1,
+    freezeT: 0,
     upg: {}, stats: baseStats(),
   };
 }
@@ -2160,7 +2256,7 @@ const UPGRADES = [
   { id: 'engine',  name: '冷却核心',  rar: 1, max: 4, desc: '冲刺冷却 -0.18 秒',            apply: (s) => { s.dashCd = Math.max(0.4, s.dashCd - 0.18); } },
   { id: 'boot',    name: '轻装',      rar: 1, max: 4, desc: '移动速度 +7',                  apply: (s) => { s.speed += 7; } },
   { id: 'magnet',  name: '磁力核心',  rar: 1, max: 3, desc: '经验吸附范围 +20',             apply: (s) => { s.magnet += 20; } },
-  { id: 'vital',   name: '强心',      rar: 1, max: 4, desc: '生命上限 +1，并回复 1 点',      apply: (s, p) => { s.maxHpBonus += 1; p.hp += 1; } },
+  { id: 'vital',   name: '强心',      rar: 1, max: 4, desc: '生命上限 +1，并回复 2 点',      apply: (s, p) => { s.maxHpBonus += 1; p.hp += 2; } },
   { id: 'wide',    name: '巨力冲撞',  rar: 1, max: 3, desc: '冲刺判定范围 +3',              apply: (s) => { s.dashRadius += 3; } },
   { id: 'greed',   name: '经验汲取',  rar: 1, max: 3, desc: '获得经验 +15%',                apply: (s) => { s.xpMul += 0.15; } },
 
@@ -2177,7 +2273,7 @@ const UPGRADES = [
 
   /* ---- 金（稀有）：构筑支点 ---- */
   { id: 'battery', name: '备用储能',  rar: 3, max: 3, desc: '冲刺充能次数 +1',              apply: (s) => { s.dashCharges += 1; } },
-  { id: 'leech',   name: '嗜血',      rar: 3, max: 3, desc: '冲刺击杀可回复生命',            apply: (s) => { s.healKills = s.healKills === 0 ? 6 : Math.max(2, s.healKills - 1); } },
+  { id: 'leech',   name: '嗜血',      rar: 3, max: 3, desc: '冲刺击杀攒够数量回 1 血（内部 1.5 秒冷却）', apply: (s) => { s.healKills = s.healKills === 0 ? 6 : Math.max(2, s.healKills - 1); } },
   { id: 'rage',    name: '背水一战',  rar: 3, max: 2, desc: '生命低于 50% 时冲刺伤害 +50%',  apply: (s) => { s.rage += 0.5; } },
   { id: 'ward',    name: '守护结界',  rar: 3, max: 2, desc: '获得 1 层护盾，可挡一次伤害（冷却 12 秒）', apply: (s) => { s.shieldMax += 1; s.shieldCd = s.shieldCd === 0 ? 12 : Math.max(6, s.shieldCd - 3); } },
 ];
@@ -2208,12 +2304,14 @@ function resetWorld() {
   hitStop = 0; hitSnd = 0; orbChain = 0; orbChainT = 0;
   spawnTimer = 2.0 * diff.spawn; nextBoss = 100; pendingLevels = 0;
   bossGen = 0; lastTier = 0; splitQueue.length = 0;
+  coins = 0; nextEvent = 20; frenzyT = 0;
   enemies = []; orbs = []; bullets = []; ebullets = []; drops = [];
-  particles = []; trails = []; effects = []; texts = []; marks = [];
+  particles = []; trails = []; effects = []; texts = []; marks = []; hazards = [];
   rerolls = 2;   // 每局开局送两次换牌机会
   eid = 0;
   player = makePlayer();
   resetAchRun();
+  tutorial = makeTutorial();
 }
 
 function hideLayers() {
@@ -2225,6 +2323,56 @@ function hideLayers() {
   $('#historyScreen').classList.add('hidden');
   $('#codexScreen').classList.add('hidden');
   $('#achScreen').classList.add('hidden');
+  $('#tutBox').classList.add('hidden');
+}
+
+/* ============================================================
+   新手教程：只在新玩家第一次进入时出现，四步引导
+   ============================================================ */
+const TUT_KEY = 'pixelDash.tut.v1';
+const TUT_STEPS = [
+  '拖动移动：WASD / 方向键，手机用左下摇杆',
+  '按空格 / 冲刺键冲刺 —— 冲刺穿过敌人才有伤害',
+  '用冲刺穿过第一个敌人，把它撞碎',
+  '升级时选一张卡，构筑自己的能力',
+];
+function makeTutorial() {
+  let seen = false;
+  try { seen = localStorage.getItem(TUT_KEY) === '1'; } catch (e) {}
+  return { active: !seen, step: 0, dist: 0, lx: player ? player.x : W / 2, ly: player ? player.y : H / 2 };
+}
+function endTutorial() {
+  if (!tutorial) return;
+  tutorial.active = false;
+  try { localStorage.setItem(TUT_KEY, '1'); } catch (e) {}
+  const box = $('#tutBox');
+  if (box) box.classList.add('hidden');
+}
+function tutAdvance() {
+  if (!tutorial || !tutorial.active) return;
+  tutorial.step += 1;
+  tutorial.dist = 0;
+  if (tutorial.step >= TUT_STEPS.length) { endTutorial(); return; }
+  renderTut();
+  blip(760, 0.06, 'triangle', 0.035, 120);
+}
+function renderTut() {
+  const box = $('#tutBox');
+  if (!box || !tutorial) return;
+  if (!tutorial.active) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  $('#tutText').textContent = '新手 ' + (tutorial.step + 1) + '/' + TUT_STEPS.length + '　' + TUT_STEPS[tutorial.step];
+  const skip = $('#tutSkip');
+  skip.classList.toggle('hidden', tutorial.step >= TUT_STEPS.length - 1);
+}
+function updateTutorial(dt) {
+  if (!tutorial || !tutorial.active || state !== 'playing' || !player) return;
+  if (tutorial.step === 0) {
+    const dx = player.x - tutorial.lx, dy = player.y - tutorial.ly;
+    tutorial.dist += Math.hypot(dx, dy);
+    if (tutorial.dist >= 80) tutAdvance();
+  }
+  tutorial.lx = player.x; tutorial.ly = player.y;
 }
 
 function startGame() {
@@ -2232,6 +2380,7 @@ function startGame() {
   resetWorld();
   hideLayers();
   state = 'playing';
+  renderTut();
   audio();
   lastTs = performance.now();
   blip(520, 0.08, 'triangle', 0.05, 320);
@@ -2239,6 +2388,7 @@ function startGame() {
 }
 
 function goMenu() {
+  bankCoins();
   state = 'menu';
   endless = false;
   resetWorld();
@@ -2253,6 +2403,22 @@ function goMenu() {
    ============================================================ */
 const HKEY = 'pixelDash.records.v1';
 const MAX_REC = 10;
+const COIN_KEY = 'pixelDash.coins.v1';
+
+function loadCoins() {
+  try { return Math.max(0, Math.floor(Number(localStorage.getItem(COIN_KEY) || 0))); } catch (e) { return 0; }
+}
+function saveCoins(n) {
+  try { localStorage.setItem(COIN_KEY, String(Math.max(0, Math.floor(n)))); } catch (e) {}
+}
+/* 单局金币入账：返回本局获得与累计总额，供结算面板显示 */
+function bankCoins() {
+  const run = coins;
+  coins = 0;
+  const total = loadCoins() + run;
+  if (run > 0) saveCoins(total);
+  return { run, total };
+}
 
 function calcScore() {
   if (!player) return 0;
@@ -2480,11 +2646,17 @@ const ACHS = [
   { id: 'ironhead',name: '铁头功',     kind: 'neg', desc: '单局被敌人击中 12 次',                 cond: (r) => r.hits >= 12 },
   { id: 'spendthrift', name: '散财童子', kind: 'neg', desc: '死亡时还剩至少 3 次换牌机会',         cond: (r, s, c) => !!c.dead && rerolls >= 3 },
   { id: 'scavenger', name: '拾荒之王', kind: 'neg', desc: '单局拾取 100 颗经验球',                cond: (r) => r.orbs >= 100 },
+
+  { id: 'toxin',   name: '毒入膏肓',   kind: 'neg', desc: '单局中毒 5 次',                        cond: (r) => r.poisons >= 5 },
+  { id: 'icesculpt',name:'冰雕艺术',   kind: 'neg', desc: '单局被冰冻 3 次',                      cond: (r) => r.freezes >= 3 },
+  { id: 'sweeper', name: '清场大扫除', kind: 'pos', desc: '单局击杀 BOSS 触发清屏',                cond: (r) => r.clears >= 1 },
+  { id: 'alchemy', name: '炼金术士',   kind: 'pos', desc: '单局入账 200 金币',                    cond: (r) => r.coinsEarned >= 200 },
 ];
 
 function resetAchRun() {
   achRun = {
-    kills: 0, elites: 0, dashes: 0, hits: 0, orbs: 0,
+    kills: 0, elites: 0, bosses: 0, dashes: 0, hits: 0, orbs: 0,
+    poisons: 0, freezes: 0, clears: 0, coinsEarned: 0,
     noHitT: 0, lastKill: 0, dist: 0, killTimes: [],
     lastX: player ? player.x : 0, lastY: player ? player.y : 0,
   };
@@ -2589,6 +2761,7 @@ function winJingle() {
 function endGame(win, quit) {
   if (state !== 'playing') return;
   state = win ? 'won' : 'dead';
+  const bank = bankCoins();
   const score = calcScore();
   const prev = bestRecord();
   const newBest = !prev || score > prev.score;
@@ -2611,7 +2784,8 @@ function endGame(win, quit) {
       diff.score.toFixed(2) + '">' + score + '</b></div>' +
     cell('存活', fmt(time), '') +
     cell('击杀', kills, 'hot') +
-    cell('等级', 'Lv.' + player.level, 'gold');
+    cell('等级', 'Lv.' + player.level, 'gold') +
+    cell('金币', '+' + bank.run + (bank.total ? ' · 共 ' + bank.total : ''), 'coin');
   $('#endFlags').innerHTML =
     (newBest ? '<span class="rflag">★ 新纪录</span>' : '') +
     (newAch.length ? '<span class="rflag ach">✦ 新成就 · ' + newAch.join(' · ') + '</span>' : '') +
@@ -2664,7 +2838,28 @@ let ctlShown = false;
 const fsBtn = $('#fsBtn');
 const fsSupported = !!(document.documentElement.requestFullscreen ||
                        document.documentElement.webkitRequestFullscreen);
-if (!fsSupported) fsBtn.classList.add('off');
+/* iPhone / iPad 的 Safari 不支持网页元素全屏：不隐藏按钮，改为引导「添加到主屏幕」 */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = navigator.standalone === true ||
+                     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+if (!fsSupported && !isIOS) fsBtn.classList.add('off');
+
+function openIosTip() {
+  const tip = $('#iosTip');
+  const note = $('#iosTipNote');
+  if (isStandalone) {
+    note.textContent = '你已从主屏幕启动，当前就是全屏运行。';
+  } else {
+    note.textContent = '网页版 Safari 不支持强制隐藏工具栏。';
+  }
+  tip.classList.remove('hidden');
+}
+$('#iosTipClose').addEventListener('click', () => $('#iosTip').classList.add('hidden'));
+$('#iosTip').addEventListener('click', (e) => {
+  if (e.target === $('#iosTip')) $('#iosTip').classList.add('hidden');
+});
+$('#tutSkip').addEventListener('click', endTutorial);
 
 /* ---- 设置：音效 / BGM ---- */
 const setBtn = $('#setBtn');
@@ -2738,6 +2933,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 fsBtn.addEventListener('click', () => {
+  if (isIOS) { openIosTip(); return; }
+  if (!fsSupported) return;
   const d = document;
   if (d.fullscreenElement || d.webkitFullscreenElement) {
     (d.exitFullscreen || d.webkitExitFullscreen).call(d);
@@ -2752,13 +2949,13 @@ document.addEventListener('fullscreenchange', () => {
 
 /* ---- 游戏内 HUD：DOM 叠层，每帧同步数据 ---- */
 const HEART_SVG = '<svg viewBox="0 0 12 11" aria-hidden="true"><path class="hp" d="M6 10.4 L1.5 5.9 C0.3 4.6 0.4 2.3 2.1 1.3 C3.5 0.5 5 1.2 6 2.6 C7 1.2 8.5 0.5 9.9 1.3 C11.6 2.3 11.7 4.6 10.5 5.9 Z"/><path class="hl" d="M3.05 3.15 C3.5 2.3 4.55 2.1 5.2 2.62"/></svg>';
-const hudEl = $('#hudOverlay'), heartsEl = $('#hearts'), shieldEl = $('#shieldPips');
+const hudEl = $('#hudOverlay'), heartsEl = $('#hearts'), shieldEl = $('#shieldPips'), statusEl = $('#statusPips');
 const hudTimeEl = $('#hudTime'), scoreValEl = $('#scoreVal'), hudKillsEl = $('#hudKills');
 const diffTagEl = $('#diffTag'), xpFillEl = $('#xpFill'), lvBadgeEl = $('#lvBadge');
 const hudHintEl = $('#hudHint'), toastsEl = $('#toasts');
 const bossBarEl = $('#bossBar'), bossFillEl = $('#bossFill'), bossHpEl = $('#bossHp'), bossNameEl = $('#bossName');
 let hudShown = false, hudHp = -1, hudShieldN = -1;
-let hudTimeTxt = '', hudScoreVal = -1, hudKillsVal = -1, hudLvVal = -1;
+let hudTimeTxt = '', hudScoreVal = -1, hudKillsVal = -1, hudLvVal = -1, hudStatusSig = '';
 let bossBarOn = false, bossHpW = -1, bossHpTxt = '', bossNameTxt = '';
 
 function toast(msg, hot) {
@@ -2785,6 +2982,17 @@ function hudSync() {
     hudShieldN = p.shield;
     shieldEl.innerHTML = '<svg viewBox="0 0 12 13" aria-hidden="true"><path d="M6 1 L11 3 V6.4 C11 9.4 8.6 11.6 6 12 C3.4 11.6 1 9.4 1 6.4 V3 Z"/></svg><b>' + p.shield + '</b>';
     shieldEl.classList.toggle('on', p.shield > 0);
+  }
+  // 状态条：毒素优先展示，其余按存在与否拼接
+  const sig = (p.poisonT > 0 ? 'p' : '') + (p.healBlock > 0 ? 'h' : '') +
+              (p.freezeT > 0 ? 'f' : (p.slowT > 0 ? 's' : ''));
+  if (sig !== hudStatusSig) {
+    hudStatusSig = sig;
+    statusEl.classList.toggle('on', sig.length > 0);
+    statusEl.innerHTML =
+      (p.poisonT > 0 ? '<span class="p">中毒</span>' : '') +
+      (p.healBlock > 0 ? '<span class="h">禁吸</span>' : '') +
+      (p.freezeT > 0 ? '<span class="f">冰冻</span>' : (p.slowT > 0 ? '<span class="s">减速</span>' : ''));
   }
   const t = fmt(time);
   if (t !== hudTimeTxt) { hudTimeTxt = t; hudTimeEl.textContent = t; }
@@ -2954,6 +3162,7 @@ $('#histClearBtn').addEventListener('click', () => {
 });
 $('#endlessBtn').addEventListener('click', () => {
   endless = true;
+  nextEvent = time + 20;   // 进无尽先给 20 秒缓冲，别一进去就撞事件
   state = 'playing';
   layers.end.classList.add('hidden');
   lastTs = performance.now();
@@ -2991,6 +3200,7 @@ function tryDash() {
 
   p.dashCharges -= 1;
   if (achRun) achRun.dashes += 1;
+  p.freezeT = 0;   // 冲刺可以震碎冰冻
   p.dashT = p.stats.dashTime;
   p.invuln = Math.max(p.invuln, p.stats.dashTime + 0.2 + p.stats.invulnBonus);
   p.dashDx = dx; p.dashDy = dy;
@@ -2999,6 +3209,34 @@ function tryDash() {
   burst(p.x, p.y, '#63d9ff', 7, 50);
   blip(420, 0.11, 'sawtooth', 0.045, -300);
   blip(180, 0.06, 'square', 0.03, 90);
+  if (tutorial && tutorial.active && tutorial.step === 1) tutAdvance();
+}
+
+/* ============================================================
+   状态效果：毒 / 封锁吸血 / 减速 / 冰冻
+   ============================================================ */
+function applyPoison(dur) {
+  const p = player;
+  if (!p) return;
+  if (p.poisonT <= 0.2 && achRun) achRun.poisons += 1;
+  p.poisonT = Math.max(p.poisonT, dur);
+  applyHealBlock(dur);
+}
+function applyHealBlock(dur) {
+  if (!player) return;
+  player.healBlock = Math.max(player.healBlock, dur);
+}
+function applySlow(dur, mul) {
+  const p = player;
+  if (!p) return;
+  p.slowT = Math.max(p.slowT, dur);
+  p.slowMul = Math.min(p.slowMul, mul || 0.5);
+}
+function applyFreeze(dur) {
+  const p = player;
+  if (!p) return;
+  if (p.freezeT <= 0 && achRun) achRun.freezes += 1;
+  p.freezeT = Math.max(p.freezeT, dur);
 }
 
 /* ============================================================
@@ -3008,6 +3246,28 @@ function updatePlayer(dt) {
   const p = player;
   if (p.flash > 0) p.flash -= dt;
   if (p.invuln > 0) p.invuln -= dt;
+  if (p.healCd > 0) p.healCd -= dt;
+  if (p.healBlock > 0) p.healBlock -= dt;
+  if (p.slowT > 0) {
+    p.slowT -= dt;
+    if (p.slowT <= 0) p.slowMul = 1;
+  }
+  if (p.freezeT > 0) p.freezeT -= dt;
+
+  // 中毒：每秒固定掉 1 点血，且期间无法吸血
+  if (p.poisonT > 0) {
+    p.poisonT -= dt;
+    p.poisonTick -= dt;
+    if (p.poisonTick <= 0) {
+      p.poisonTick = 1;
+      p.hp -= 1;
+      p.flash = 0.1;
+      texts.push({ x: p.x, y: p.y - 12, vy: -18, life: 0.6, text: '-1 毒', color: '#9ef58a' });
+      burst(p.x, p.y, '#9ef58a', 5, 30);
+      blip(260, 0.08, 'triangle', 0.03, -60);
+      if (p.hp <= 0) { p.hp = 0; endGame(false); return; }
+    }
+  }
 
   // 守护结界：护盾按冷却恢复
   if (p.stats.shieldMax > 0 && p.shield < p.stats.shieldMax) {
@@ -3073,16 +3333,23 @@ function updatePlayer(dt) {
           p.dashKillCount += 1;
           if (p.dashKillCount >= p.stats.healKills) {
             p.dashKillCount = 0;
-            p.hp = Math.min(p.maxHp, p.hp + 1);
-            texts.push({ x: p.x, y: p.y - 10, vy: -18, life: 0.7, text: '+1', color: '#7dffb0' });
+            if (p.healBlock > 0) {
+              texts.push({ x: p.x, y: p.y - 10, vy: -16, life: 0.7, text: '被腐蚀 · 无法吸血', color: '#9ef58a' });
+            } else if (p.healCd <= 0) {
+              p.healCd = 1.5;   // 嗜血内部冷却：连续穿杀不会每秒回满
+              p.hp = Math.min(p.maxHp, p.hp + 1);
+              texts.push({ x: p.x, y: p.y - 10, vy: -18, life: 0.7, text: '+1', color: '#7dffb0' });
+            }
           }
         }
+        if (killed && tutorial && tutorial.active && tutorial.step === 2) tutAdvance();
       }
     }
-  } else {
+  } else if (p.freezeT <= 0) {
     const m = Math.hypot(ix, iy) || 1;
     // 摇杆推动幅度决定速度：轻推慢走、推满全速（键盘始终全速）
-    const spd = p.stats.speed * (stickMag > 0 ? 0.45 + 0.55 * stickMag : 1);
+    const spd = p.stats.speed * (stickMag > 0 ? 0.45 + 0.55 * stickMag : 1) *
+                (p.slowT > 0 ? p.slowMul : 1);
     p.x += (ix / m) * spd * dt * (ix || iy ? 1 : 0);
     p.y += (iy / m) * spd * dt * (ix || iy ? 1 : 0);
     if (ix || iy) {
@@ -3167,11 +3434,22 @@ function killEnemy(e) {
   const t = ETYPES[e.type];
   const pts = Math.round((e.pts || t.pts) * player.stats.scoreMul * (e.affix ? 2.5 : 1));
   killScore += pts;
-  orbs.push({ x: e.x, y: e.y, v: e.affix ? Math.max(2, t.xp * 2) : t.xp, r: 2.2, dead: false });
+  if (t.xp > 0) orbs.push({ x: e.x, y: e.y, v: e.affix ? Math.max(2, t.xp * 2) : t.xp, r: 2.2, dead: false });
   // 换牌机会掉落：普通怪小概率、精英较高、BOSS 必掉
   const rrChance = e.type === 'boss' ? 1 : e.affix ? 0.2 : 0.03;
   if (rerolls + drops.length < 6 && Math.random() < rrChance) {
-    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false });
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'reroll' });
+  }
+  // 金币掉落：普通 8%，精英 25%
+  const coinChance = e.affix ? 0.25 : 0.08;
+  if (e.type !== 'boss' && Math.random() < coinChance) {
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'coin', val: e.affix ? 6 : 3 });
+  }
+  // 血包掉落：低血量时概率翻倍
+  const lowHp = player.hp <= player.maxHp * 0.4;
+  const hpChance = (e.affix ? 0.08 : 0.02) * (lowHp ? 2 : 1);
+  if (e.type !== 'boss' && Math.random() < hpChance) {
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'hp' });
   }
   const kcol = e.affix ? AFFIX[e.affix].col : t.color;
 
@@ -3192,8 +3470,14 @@ function killEnemy(e) {
     if (Math.hypot(player.x - e.x, player.y - e.y) < 22) hitPlayer({ x: e.x, y: e.y, dmg: 1 });
   }
 
+  // 毒囊死亡后原地扩散毒雾
+  if (e.type === 'poisoner') {
+    hazards.push({ x: e.x, y: e.y, r: 22, life: 5, max: 5, poison: true });
+    effects.push({ x: e.x, y: e.y, r: 22, life: 0.4, max: 0.4, color: '#9ef58a' });
+  }
+
   // 音效：不同怪不同音高，越硬越低
-  const pitch = { chaser: 168, fast: 205, shooter: 230, tank: 132, boss: 88 }[e.type] || 168;
+  const pitch = { chaser: 168, fast: 205, shooter: 230, tank: 132, poisoner: 196, frost: 250, bomber: 320, boss: 88 }[e.type] || 168;
   if (e.type === 'boss') {
     screenFlash = 0.25;
     blip(88, 0.3, 'square', 0.1, -60);
@@ -3201,14 +3485,57 @@ function killEnemy(e) {
     // 击破奖励：回 1 血 + 一圈大号经验球，明确「打死有回报」
     const gen = e.gen || 1;
     player.hp = Math.min(player.maxHp, player.hp + 1);
+    coins += 15;
+    if (achRun) achRun.coinsEarned += 15;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * TAU + rand(0, 0.4), rr = rand(10, 24);
       orbs.push({ x: clamp(e.x + Math.cos(a) * rr, 4, W - 4), y: clamp(e.y + Math.sin(a) * rr, 4, H - 4), v: 3, r: 2.2, dead: false });
     }
-    toast(bossName(gen) + ' 击破', true);
+    // BOSS 必掉 2 个血包 + 1 个金币堆
+    for (let i = 0; i < 2; i++) {
+      drops.push({ x: clamp(e.x + rand(-10, 10), 8, W - 8), y: clamp(e.y + rand(-10, 10), 8, H - 8), t: rand(0, 3), dead: false, kind: 'hp' });
+    }
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'coin', val: 10 });
+    clearBossScreen(e);
+    toast(bossName(gen) + ' 击破 · 清屏', true);
   } else {
     blip(pitch, 0.07, 'square', 0.06, -48);
     blip(pitch * 2.1, 0.05, 'triangle', 0.035, 120);
+  }
+}
+
+/* BOSS 击破清屏：只清小兵与弹幕，场上其余 BOSS 保留 */
+function clearBossScreen(boss) {
+  let n = 0;
+  for (const e of enemies) {
+    if (e.dead || e === boss || e.type === 'boss') continue;
+    e.dead = true;
+    n += 1;
+    killScore += 5;
+    effects.push({ x: e.x, y: e.y, r: 9, life: 0.22, max: 0.22, color: '#ffe066' });
+    burst(e.x, e.y, '#ffe066', 5, 40);
+  }
+  ebullets = [];
+  marks = [];
+  hazards = [];
+  screenFlash = Math.max(screenFlash, 0.35);
+  shake = Math.max(shake, 10);
+  if (achRun) achRun.clears += 1;
+  if (n > 0) toast('清屏 · ' + n + ' 个小兵', true);
+  blip(140, 0.28, 'square', 0.07, -60);
+}
+
+/* 殉爆虫自爆：不给分、不给经验，只造成伤害 */
+function explodeBomber(e) {
+  e.dead = true;
+  effects.push({ x: e.x, y: e.y, r: 26, life: 0.32, max: 0.32, color: '#ffb15c' });
+  effects.push({ x: e.x, y: e.y, r: 14, life: 0.24, max: 0.24, color: '#fff1c8' });
+  burst(e.x, e.y, '#ffb15c', 18, 100);
+  shake = Math.max(shake, 5);
+  screenFlash = Math.max(screenFlash, 0.12);
+  blip(66, 0.2, 'square', 0.08, -30);
+  if (Math.hypot(player.x - e.x, player.y - e.y) < 26 + player.r) {
+    hitPlayer({ x: e.x, y: e.y, dmg: e.dmg || 2 });
   }
 }
 
@@ -3289,7 +3616,7 @@ function spawnEnemy(type, x, y, plain) {
     r: t.r, speed: t.speed * spMul,
     dmg: t.dmg + (tier >= 4 ? 1 : 0),
     flash: 0, auraT: 0, fireT: 0, bossT: 0,
-    lungeT: 0, boost: 0, chargeT: 1.2, bossStep: 0,
+    lungeT: 0, boost: 0, chargeT: 1.2, bossStep: 0, fuseT: 0,
     affix, gen: type === 'boss' ? bossGen : 0, dead: false,
   });
 
@@ -3327,44 +3654,92 @@ function updateEnemies(dt) {
     const d = Math.hypot(dx, dy) || 1;
     const ux = dx / d, uy = dy / d;
     const slow = player.stats.slowR > 0 && d < player.stats.slowR ? player.stats.slowFactor : 1;
+    const fz = frenzyT > 0 ? 1.25 : 1;
+
+    // 腐蚀词缀：光环范围内封锁吸血并持续中毒
+    if (e.affix === 'corrupt' && d < 30) {
+      applyHealBlock(0.35);
+      if (player.poisonT <= 0.2) applyPoison(2.2);
+    }
 
     if (e.type === 'shooter') {
-      if (d > 78) { e.x += ux * e.speed * dt * slow; e.y += uy * e.speed * dt * slow; }
-      else if (d < 48) { e.x -= ux * e.speed * dt * 0.9 * slow; e.y -= uy * e.speed * dt * 0.9 * slow; }
-      else { e.x += -uy * e.speed * dt * 0.7 * slow; e.y += ux * e.speed * dt * 0.7 * slow; }
+      if (d > 78) { e.x += ux * e.speed * dt * slow * fz; e.y += uy * e.speed * dt * slow * fz; }
+      else if (d < 48) { e.x -= ux * e.speed * dt * 0.9 * slow * fz; e.y -= uy * e.speed * dt * 0.9 * slow * fz; }
+      else { e.x += -uy * e.speed * dt * 0.7 * slow * fz; e.y += ux * e.speed * dt * 0.7 * slow * fz; }
       e.fireT -= dt;
       if (e.fireT <= 0 && d < 160) {
         e.fireT = 2.1;
         ebullets.push({ x: e.x, y: e.y, vx: ux * 82, vy: uy * 82, r: 2.5, life: 4, dmg: 1, dead: false });
+      }
+    } else if (e.type === 'poisoner') {
+      // 保持 40~70 距离放毒球
+      if (d > 70) { e.x += ux * e.speed * dt * slow * fz; e.y += uy * e.speed * dt * slow * fz; }
+      else if (d < 40) { e.x -= ux * e.speed * dt * 0.8 * slow * fz; e.y -= uy * e.speed * dt * 0.8 * slow * fz; }
+      else { e.x += -uy * e.speed * dt * 0.6 * slow * fz; e.y += ux * e.speed * dt * 0.6 * slow * fz; }
+      e.fireT -= dt;
+      if (e.fireT <= 0 && d < 170) {
+        e.fireT = 2.6;
+        ebullets.push({ x: e.x, y: e.y, vx: ux * 64, vy: uy * 64, r: 3, life: 4.5, dmg: 1, dead: false, poison: true });
+        blip(300, 0.05, 'triangle', 0.025, -80);
+      }
+    } else if (e.type === 'frost') {
+      // 保持 55~90 距离放冰锥
+      if (d > 90) { e.x += ux * e.speed * dt * slow * fz; e.y += uy * e.speed * dt * slow * fz; }
+      else if (d < 55) { e.x -= ux * e.speed * dt * 0.8 * slow * fz; e.y -= uy * e.speed * dt * 0.8 * slow * fz; }
+      else { e.x += -uy * e.speed * dt * 0.5 * slow * fz; e.y += ux * e.speed * dt * 0.5 * slow * fz; }
+      e.fireT -= dt;
+      if (e.fireT <= 0 && d < 175) {
+        e.fireT = 2.4;
+        ebullets.push({ x: e.x, y: e.y, vx: ux * 74, vy: uy * 74, r: 3, life: 4.5, dmg: 1, dead: false, frost: true });
+        blip(760, 0.05, 'triangle', 0.025, 120);
+      }
+    } else if (e.type === 'bomber') {
+      // 追到身边后点燃引信，0.6 秒自爆（不给分）
+      if (e.fuseT > 0) {
+        e.fuseT -= dt;
+        if (e.fuseT <= 0) { explodeBomber(e); continue; }
+      } else {
+        e.x += ux * e.speed * dt * slow * fz;
+        e.y += uy * e.speed * dt * slow * fz;
+        if (d < 16) {
+          e.fuseT = 0.6;
+          blip(880, 0.06, 'square', 0.03, 140);
+        }
       }
     } else if (e.type === 'fast') {
       e.lungeT -= dt;
       let sp = e.speed;
       if (e.lungeT <= 0) { e.lungeT = 1.7; e.boost = 0.28; }
       if (e.boost > 0) { e.boost -= dt; sp = e.speed * 2.3; }
-      e.x += ux * sp * dt * slow; e.y += uy * sp * dt * slow;
+      e.x += ux * sp * dt * slow * fz; e.y += uy * sp * dt * slow * fz;
     } else if (e.type === 'boss') {
       const gen = e.gen || 1;
       if (e.boost > 0) e.boost -= dt;
       const sp = e.speed * (1 + 0.06 * (gen - 1)) * (e.boost > 0 ? 2.4 : 1);
-      e.x += ux * sp * dt * slow;
-      e.y += uy * sp * dt * slow;
+      e.x += ux * sp * dt * slow * fz;
+      e.y += uy * sp * dt * slow * fz;
       e.bossT -= dt;
       if (e.bossT <= 0) {
         const rage = e.hp <= e.maxHp * 0.5;
         e.bossT = rage ? 2.5 : 3.4;
         e.bossStep = (e.bossStep || 0) + 1;
-        const kinds = gen >= 3 ? 3 : gen === 2 ? 2 : 1;
-        const kind = e.bossStep % kinds;
-        if (kind === 0) {
+        // 招式随世代解锁：1 环形 → 2 召唤/毒池 → 3 冰锥/冲锋 → 4 全部
+        const moves = ['ring'];
+        if (gen >= 2) moves.push('summon', 'poison');
+        if (gen >= 3) moves.push('frost', 'charge');
+        if (gen >= 4) moves.push('fan');
+        const kind = moves[e.bossStep % moves.length];
+        const bdmg = gen >= 4 ? 2 : 1;
+
+        if (kind === 'ring') {
           // 环形弹幕：弹量随世代增加
           const n = 8 + (gen - 1) * 2;
           for (let i = 0; i < n; i++) {
             const a = (i / n) * TAU + time * (0.6 + 0.15 * gen);
-            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, r: 3, life: 5, dmg: 1, dead: false });
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, r: 3, life: 5, dmg: bdmg, dead: false });
           }
           blip(120, 0.2, 'square', 0.05, -50);
-        } else if (kind === 1) {
+        } else if (kind === 'summon') {
           // 召唤小怪：先在地面亮起预警圈，0.75 秒后才真正冒出来
           if (enemies.length + marks.length < 150) {
             const n2 = 2 + gen;
@@ -3381,18 +3756,43 @@ function updateEnemies(dt) {
           const base = Math.atan2(dy, dx);
           for (let i = -1; i <= 1; i++) {
             const a = base + i * 0.3;
-            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 86, vy: Math.sin(a) * 86, r: 3, life: 5, dmg: 1, dead: false });
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 86, vy: Math.sin(a) * 86, r: 3, life: 5, dmg: bdmg, dead: false });
           }
           blip(90, 0.22, 'sawtooth', 0.06, -30);
-        } else {
+        } else if (kind === 'poison') {
+          // 毒池：在玩家附近与自身周围留下 3 片毒雾
+          for (let i = 0; i < 3; i++) {
+            const a = rand(0, TAU), rr = rand(16, 36);
+            const px2 = i === 0 ? clamp(player.x + rand(-12, 12), 10, W - 10) : clamp(e.x + Math.cos(a) * rr, 10, W - 10);
+            const py2 = i === 0 ? clamp(player.y + rand(-12, 12), 10, H - 10) : clamp(e.y + Math.sin(a) * rr, 10, H - 10);
+            hazards.push({ x: px2, y: py2, r: 22, life: 5, max: 5, poison: true });
+          }
+          blip(180, 0.2, 'triangle', 0.05, -40);
+        } else if (kind === 'frost') {
+          // 冰锥扇面：命中减速，连续命中会冰冻
+          const base = Math.atan2(dy, dx);
+          for (let i = -2; i <= 2; i++) {
+            const a = base + i * 0.2;
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 78, vy: Math.sin(a) * 78, r: 3, life: 5, dmg: bdmg, dead: false, frost: true });
+          }
+          blip(560, 0.16, 'triangle', 0.05, 90);
+        } else if (kind === 'charge') {
           // 冲锋 + 扇形弹幕
           e.boost = 0.45;
           const base = Math.atan2(dy, dx);
           for (let i = -3; i <= 3; i++) {
             const a = base + i * 0.16;
-            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 96, vy: Math.sin(a) * 96, r: 3, life: 5, dmg: 1, dead: false });
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 96, vy: Math.sin(a) * 96, r: 3, life: 5, dmg: bdmg, dead: false });
           }
           blip(70, 0.26, 'square', 0.07, -50);
+        } else {
+          // 四周扩散弹幕
+          const base = Math.atan2(dy, dx);
+          for (let i = -5; i <= 5; i++) {
+            const a = base + i * 0.22;
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 88, vy: Math.sin(a) * 88, r: 3, life: 5, dmg: bdmg, dead: false });
+          }
+          blip(90, 0.2, 'sawtooth', 0.055, -40);
         }
       }
     } else {
@@ -3402,8 +3802,8 @@ function updateEnemies(dt) {
         if (e.chargeT <= 0) { e.chargeT = 2.2; e.boost = 0.3; }
         if (e.boost > 0) { e.boost -= dt; sp = e.speed * 2.6; }
       }
-      e.x += ux * sp * dt * slow;
-      e.y += uy * sp * dt * slow;
+      e.x += ux * sp * dt * slow * fz;
+      e.y += uy * sp * dt * slow * fz;
     }
 
     e.x = clamp(e.x, e.r, W - e.r);
@@ -3427,6 +3827,11 @@ function updateEBullets(dt) {
     if (player.invuln <= 0 && player.dashT <= 0 &&
         Math.hypot(player.x - b.x, player.y - b.y) < player.r + b.r) {
       b.life = 0;
+      if (b.poison) applyPoison(2.6);
+      if (b.frost) {
+        if (player.slowT > 0) { applyFreeze(0.6); texts.push({ x: player.x, y: player.y - 14, vy: -16, life: 0.6, text: '冰冻!', color: '#dff4ff' }); }
+        else applySlow(2, 0.5);
+      }
       hitPlayer(b);
       if (state !== 'playing') return;
     }
@@ -3463,11 +3868,12 @@ function gainXP(n) {
     p.level += 1;
     p.xpNext = Math.round(p.xpNext * 1.22 + 2);
     pendingLevels += 1;
+    p.hp = Math.min(p.maxHp, p.hp + 1);   // 升级回 1 点血，缓解中期压力
   }
   if (pendingLevels > 0 && state === 'playing') openUpgrade();
 }
 
-/* 换牌机会：靠近吸附，碰到即收集 */
+/* 掉落物：换牌 / 金币 / 血包，靠近吸附，碰到即收集 */
 function updateDrops(dt) {
   const p = player;
   for (const d of drops) {
@@ -3481,11 +3887,29 @@ function updateDrops(dt) {
     }
     if (dist < 8) {
       d.dead = true;
-      rerolls = Math.min(6, rerolls + 1);
-      toast('换牌机会 +1');
-      blip(980, 0.06, 'triangle', 0.05, 220);
-      effects.push({ x: d.x, y: d.y, r: 8, life: 0.2, max: 0.2, color: '#ffe066' });
-      burst(d.x, d.y, '#ffe066', 6, 40);
+      const kind = d.kind || 'reroll';
+      if (kind === 'coin') {
+        const v = d.val || 3;
+        coins += v;
+        if (achRun) { achRun.coinsEarned += v; checkAch(); }
+        toast('金币 +' + v);
+        blip(1040, 0.06, 'triangle', 0.04, 180);
+        effects.push({ x: d.x, y: d.y, r: 8, life: 0.2, max: 0.2, color: '#ffd54a' });
+        burst(d.x, d.y, '#ffd54a', 6, 40);
+      } else if (kind === 'hp') {
+        p.hp = Math.min(p.maxHp, p.hp + 2);
+        texts.push({ x: p.x, y: p.y - 10, vy: -18, life: 0.7, text: '+2', color: '#7dffb0' });
+        toast('血包 +2');
+        blip(700, 0.09, 'triangle', 0.05, 160);
+        effects.push({ x: d.x, y: d.y, r: 9, life: 0.22, max: 0.22, color: '#ff6b7a' });
+        burst(d.x, d.y, '#ff6b7a', 7, 42);
+      } else {
+        rerolls = Math.min(6, rerolls + 1);
+        toast('换牌机会 +1');
+        blip(980, 0.06, 'triangle', 0.05, 220);
+        effects.push({ x: d.x, y: d.y, r: 8, life: 0.2, max: 0.2, color: '#ffe066' });
+        burst(d.x, d.y, '#ffe066', 6, 40);
+      }
     }
   }
   drops = drops.filter((d) => !d.dead);
@@ -3556,6 +3980,19 @@ function updateZones(dt) {
   trails = trails.filter((t) => t.life > 0);
 }
 
+/* 毒雾区域：站在里面会封锁吸血并持续中毒 */
+function updateHazards(dt) {
+  if (!hazards.length) return;
+  for (const h of hazards) {
+    h.life -= dt;
+    if (Math.hypot(player.x - h.x, player.y - h.y) < h.r) {
+      applyHealBlock(0.4);
+      if (player.poisonT <= 0.2) applyPoison(2.4);
+    }
+  }
+  hazards = hazards.filter((h) => h.life > 0);
+}
+
 function updateParticles(dt) {
   for (const p of particles) {
     p.x += p.vx * dt; p.y += p.vy * dt;
@@ -3590,7 +4027,10 @@ function pickType() {
   const pool = [['chaser', 1]];
   if (time > 15) pool.push(['fast', 0.8]);
   if (time > 35) pool.push(['shooter', 0.5]);
+  if (time > 50) pool.push(['poisoner', 0.36]);
   if (time > 55) pool.push(['tank', 0.35]);
+  if (time > 70) pool.push(['frost', 0.3]);
+  if (time > 95) pool.push(['bomber', 0.3]);
   let total = 0;
   for (const p of pool) total += p[1];
   let r = rand(0, total);
@@ -3646,15 +4086,77 @@ function updateSpawn(dt) {
 }
 
 /* ============================================================
-   主更新
+   无尽模式事件：每 75 秒触发一次，增加变数
    ============================================================ */
+function spawnForcedElite(type, hpMul) {
+  spawnAtEdge(type);
+  const e = enemies[enemies.length - 1];
+  if (!e) return;
+  e.affix = pick(AFFIX_IDS);
+  if (e.affix === 'shield') { e.hp = Math.round(e.hp * 1.6); e.maxHp = e.hp; }
+  if (hpMul) { e.hp = Math.round(e.hp * hpMul); e.maxHp = e.hp; }
+}
+
+function runEndlessEvent() {
+  const ev = pick(['elite', 'fog', 'coins', 'dual', 'frenzy']);
+  if (ev === 'elite') {
+    for (let i = 0; i < 6; i++) spawnForcedElite(pick(['chaser', 'fast', 'poisoner', 'frost']), 1.15);
+    toast('事件 · 精英潮', true);
+    blip(110, 0.24, 'sawtooth', 0.06, -40);
+  } else if (ev === 'fog') {
+    for (let i = 0; i < 5; i++) {
+      hazards.push({
+        x: rand(18, W - 18), y: rand(18, H - 18),
+        r: rand(18, 30), life: rand(7, 11), max: 10, poison: true,
+      });
+    }
+    toast('事件 · 毒雾弥漫', true);
+    blip(200, 0.22, 'triangle', 0.045, -70);
+  } else if (ev === 'coins') {
+    for (let i = 0; i < 12; i++) {
+      drops.push({
+        x: rand(10, W - 10), y: rand(10, H - 10),
+        t: rand(0, 3), dead: false, kind: 'coin', val: 4,
+      });
+    }
+    toast('事件 · 金币雨', true);
+    blip(1040, 0.1, 'triangle', 0.05, 90);
+  } else if (ev === 'dual') {
+    if (bossGen < 4) bossGen = 4;
+    spawnAtEdge('boss');
+    for (const e of enemies) {
+      if (e.type !== 'boss' || e.dead) continue;
+      e.maxHp = Math.round(e.maxHp * 0.8);
+      e.hp = Math.min(e.hp, e.maxHp);
+    }
+    shake = Math.max(shake, 8);
+    toast('事件 · 双 BOSS 降临', true);
+    blip(90, 0.3, 'sawtooth', 0.08, -60);
+  } else {
+    frenzyT = 12;
+    toast('事件 · 狂暴：敌人加速 12 秒', true);
+    blip(520, 0.2, 'square', 0.06, 120);
+  }
+}
+
+function updateEvents(dt) {
+  if (!endless) return;
+  if (time >= nextEvent) {
+    nextEvent = time + 75;
+    runEndlessEvent();
+  }
+}
+
+/* 主更新 */
 function update(dt) {
   if (hitSnd > 0) hitSnd -= dt;
+  if (frenzyT > 0) frenzyT -= dt;
   time += dt;
   if (!endless && time >= WIN_TIME) { endGame(true); return; }
   updatePlayer(dt);
   if (state !== 'playing') return;
   achTrack(dt);
+  updateTutorial(dt);
 
   updateEnemies(dt);
   if (state !== 'playing') return;
@@ -3664,6 +4166,7 @@ function update(dt) {
   if (state !== 'playing') return;
 
   updateZones(dt);
+  updateHazards(dt);
   updateOrbs(dt);
   if (state !== 'playing') return;
   updateDrops(dt);
@@ -3686,6 +4189,7 @@ function update(dt) {
   updateMarks(dt);
   updateParticles(dt);
   updateSpawn(dt);
+  updateEvents(dt);
 
   enemies = enemies.filter((e) => !e.dead);
 
@@ -3788,6 +4292,10 @@ function chooseIndex(i) {
   layers.upgrade.classList.add('hidden');
   pendingLevels -= 1;
   blip(520, 0.08, 'triangle', 0.05, 300);
+  // 教程最后一步：选一张卡即完成
+  if (tutorial && tutorial.active && tutorial.step === 3) {
+    tutAdvance();
+  }
   if (pendingLevels > 0) {
     openUpgrade();
   } else {
@@ -3886,6 +4394,31 @@ function paintMonster(g, left, top, s, o) {
     g.fillStyle = 'rgba(255,255,255,.30)';
     g.fillRect(left + 2, by, 1, 1);
     g.fillRect(left + s - 3, by, 1, 1);
+  } else if (type === 'poisoner') {
+    // 头顶毒囊：一小包冒泡的绿液
+    g.fillStyle = edge;
+    g.fillRect(mid - 2, top - 2, 4, 3);
+    g.fillStyle = 'rgba(180,255,170,.85)';
+    g.fillRect(mid - 1, top - 1, 2, 1);
+    g.fillStyle = 'rgba(125,220,125,.75)';
+    g.fillRect(left + 1, top + s - 2, 1, 1);
+    g.fillRect(left + s - 2, top + s - 2, 1, 1);
+  } else if (type === 'frost') {
+    // 冰棱甲：头顶碎冰尖
+    g.fillStyle = '#dff4ff';
+    g.fillRect(mid - 1, top - 3, 1, 2);
+    g.fillRect(left + 1, top - 2, 1, 2);
+    g.fillRect(left + s - 2, top - 2, 1, 2);
+    g.fillStyle = 'rgba(143,216,255,.7)';
+    g.fillRect(left + 1, top + s - 2, s - 2, 1);
+  } else if (type === 'bomber') {
+    // 自爆兵：头顶引信 + 腰间红带
+    g.fillStyle = edge;
+    g.fillRect(mid, top - 3, 1, 3);
+    g.fillStyle = '#ffd166';
+    g.fillRect(mid, top - 4, 1, 1);
+    g.fillStyle = '#a83a1c';
+    g.fillRect(left + 1, top + Math.round(s * 0.70), s - 2, 1);
   }
 
   // 眼睛：黑豆眼（大体型带一点白色高光）
@@ -3949,8 +4482,9 @@ function drawEnemy(e) {
   const bodyCol = isBoss ? BOSS_SKIN[Math.min(gen, BOSS_SKIN.length) - 1].col : t.color;
   const edgeCol = isBoss ? BOSS_SKIN[Math.min(gen, BOSS_SKIN.length) - 1].edge : (t.edge || '#1b1b2b');
 
-  // 突进预警：冲锋精英冲刺前 0.28s / BOSS 冲锋阶段，白色描边 + 头顶感叹号
-  const warn = (e.affix === 'charge' && (e.boost > 0 || e.chargeT < 0.28)) || (isBoss && e.boost > 0);
+  // 突进预警：冲锋精英冲刺前 0.28s / BOSS 冲锋阶段 / 自爆兵点燃引信，白色描边 + 头顶感叹号
+  const fuse = e.fuseT > 0;
+  const warn = fuse || (e.affix === 'charge' && (e.boost > 0 || e.chargeT < 0.28)) || (isBoss && e.boost > 0);
 
   if (e.affix) {
     const ac = AFFIX[e.affix].col;
@@ -4335,33 +4869,75 @@ function render() {
     ctx.fillRect(Math.round(o.x) - Math.round(s / 2), Math.round(o.y) - Math.round(s / 2), s, s);
   }
 
-  // 翻牌机会（卡片道具）
+  // 掉落物：换牌卡 / 金币 / 血包
   for (const d of drops) {
     const bob = Math.sin(time * 4 + d.t) * 1.5;
     const x = Math.round(d.x), y = Math.round(d.y + bob);
-    const pulse = 0.16 + 0.12 * Math.abs(Math.sin(time * 5 + d.t));
-    ctx.fillStyle = 'rgba(255,224,102,' + pulse.toFixed(2) + ')';
-    ctx.fillRect(x - 5, y - 6, 11, 13);
-    ctx.fillStyle = 'rgba(0,0,0,.45)';
-    ctx.fillRect(x - 4, y - 5, 9, 11);
-    ctx.fillStyle = '#ffd54a';
-    ctx.fillRect(x - 3, y - 4, 7, 9);
-    ctx.fillStyle = '#c9a227';
-    ctx.fillRect(x - 2, y - 3, 5, 1);
-    ctx.fillRect(x - 2, y - 1, 5, 1);
-    ctx.fillStyle = '#8a6a00';
-    ctx.fillRect(x - 2, y + 1, 5, 1);
-    ctx.fillRect(x - 2, y + 3, 3, 1);
+    const kind = d.kind || 'reroll';
+    if (kind === 'coin') {
+      const pulse = 0.18 + 0.14 * Math.abs(Math.sin(time * 6 + d.t));
+      ctx.fillStyle = 'rgba(255,215,74,' + pulse.toFixed(2) + ')';
+      ctx.fillRect(x - 4, y - 5, 9, 11);
+      ctx.fillStyle = '#c99516';
+      ctx.fillRect(x - 3, y - 4, 7, 9);
+      ctx.fillStyle = '#ffd54a';
+      ctx.fillRect(x - 2, y - 3, 5, 7);
+      ctx.fillStyle = '#fff0a8';
+      ctx.fillRect(x - 1, y - 1, 2, 3);
+    } else if (kind === 'hp') {
+      const pulse = 0.18 + 0.14 * Math.abs(Math.sin(time * 6 + d.t));
+      ctx.fillStyle = 'rgba(255,107,122,' + pulse.toFixed(2) + ')';
+      ctx.fillRect(x - 4, y - 5, 9, 11);
+      ctx.fillStyle = '#8c1f2c';
+      ctx.fillRect(x - 3, y - 4, 7, 9);
+      ctx.fillStyle = '#ff6b7a';
+      ctx.fillRect(x - 1, y - 3, 3, 7);
+      ctx.fillRect(x - 2, y - 1, 5, 3);
+      ctx.fillStyle = '#ffd0d6';
+      ctx.fillRect(x - 1, y - 1, 1, 3);
+    } else {
+      const pulse = 0.16 + 0.12 * Math.abs(Math.sin(time * 5 + d.t));
+      ctx.fillStyle = 'rgba(255,224,102,' + pulse.toFixed(2) + ')';
+      ctx.fillRect(x - 5, y - 6, 11, 13);
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.fillRect(x - 4, y - 5, 9, 11);
+      ctx.fillStyle = '#ffd54a';
+      ctx.fillRect(x - 3, y - 4, 7, 9);
+      ctx.fillStyle = '#c9a227';
+      ctx.fillRect(x - 2, y - 3, 5, 1);
+      ctx.fillRect(x - 2, y - 1, 5, 1);
+      ctx.fillStyle = '#8a6a00';
+      ctx.fillRect(x - 2, y + 1, 5, 1);
+      ctx.fillRect(x - 2, y + 3, 3, 1);
+    }
   }
+
+  // 毒雾区域：绿点云，随剩余时间淡出
+  for (const h of hazards) {
+    const a = Math.min(1, h.life / 5);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 6 + h.x);
+    ctx.globalAlpha = 0.10 * a;
+    ctx.fillStyle = '#7ddc7d';
+    ctx.fillRect(Math.round(h.x - h.r), Math.round(h.y - h.r), h.r * 2, h.r * 2);
+    ctx.globalAlpha = (0.30 + 0.18 * pulse) * a;
+    const n = Math.max(18, Math.round(h.r * 2.2));
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * TAU + time * 0.5;
+      const rr = h.r * (0.35 + 0.65 * ((i * 7) % n) / n);
+      ctx.fillRect(Math.round(h.x + Math.cos(ang) * rr), Math.round(h.y + Math.sin(ang) * rr), 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
 
   // 弹药
   for (const b of bullets) {
     px(b.x, b.y, 3, 3, '#ffe066');
   }
   for (const b of ebullets) {
-    px(b.x, b.y, 3, 3, '#ff6b9d');
+    const col = b.poison ? '#7ddc7d' : (b.frost ? '#8fd8ff' : '#ff6b9d');
+    px(b.x, b.y, 3, 3, col);
     ctx.globalAlpha = 0.25;
-    px(b.x, b.y, 5, 5, '#ff6b9d');
+    px(b.x, b.y, 5, 5, col);
     ctx.globalAlpha = 1;
   }
 
