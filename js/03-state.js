@@ -29,6 +29,9 @@ let terrain = { rocks: [], ice: [] };   // 地图静态地形
 let meteors = [];    // 熔岩图的陨石
 let meteorT = 0;
 let shockT = 0;      // 霓虹图的电栅计时
+let sandT = 0;       // 荒漠图沙暴剩余时间（>0 时压低能见度）
+let sandCd = 0;      // 下一次沙暴的倒计时
+const SAND_STORM = 5.5;   // 单次沙暴持续时间（秒）
 
 const keys = {};
 
@@ -222,7 +225,7 @@ const MAPS = {
     playerSpd: 1, enemySpd: 1.05, rocks: 3, ice: 0, meteor: 8, snow: 0 },
   desert: { id: 'desert', name: '荒漠', tag: '流沙', col: '#f2c46a',
     desc: '沙暴卷着热浪扫过，流沙会让脚步变慢；碎石挡路，适合练长距离冲刺。',
-    playerSpd: 0.96, enemySpd: 1.0, rocks: 4, ice: 6, meteor: 0, snow: 0 },
+    playerSpd: 0.96, enemySpd: 1.0, rocks: 4, ice: 6, meteor: 0, snow: 0, sand: 20 },
   neon:  { id: 'neon',  name: '霓虹', tag: '电栅', col: '#ff6bd6',
     desc: '霓虹地砖下埋着电栅，周期性通电；敌人更快，你也要跑得更快。',
     playerSpd: 1.04, enemySpd: 1.08, rocks: 2, ice: 0, meteor: 0, snow: 0, shock: 8 },

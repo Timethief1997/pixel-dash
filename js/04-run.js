@@ -21,6 +21,7 @@ function resetWorld() {
   meteors = [];
   meteorT = map.meteor > 0 ? 6 : 0;   // 熔岩图：开局 6 秒后第一颗陨石
   shockT = map.shock > 0 ? 3 : 0;     // 霓虹图：开局 3 秒后第一次通电
+  sandT = 0; sandCd = map.sand > 0 ? 9 : 0;   // 荒漠图：开局 9 秒后第一阵沙暴
   eid = 0;
   generateTerrain();
   player = makePlayer();

@@ -1015,6 +1015,22 @@ function updateMapTerrain(dt) {
       blip(980, 0.1, 'square', 0.04, -120);
     }
   }
+
+  /* 荒漠图：周期性沙暴，黄沙糊住视线但不造成伤害 */
+  if (map.sand) {
+    if (sandT > 0) {
+      sandT = Math.max(0, sandT - dt);
+    } else {
+      sandCd -= dt;
+      if (sandCd <= 0) {
+        sandCd = map.sand + rand(-3, 3);
+        sandT = SAND_STORM;
+        toast('沙暴来袭 · 能见度降低', true);
+        shake = Math.max(shake, 3);
+        blip(90, 0.3, 'sawtooth', 0.05, -20);
+      }
+    }
+  }
 }
 
 function updateParticles(dt) {

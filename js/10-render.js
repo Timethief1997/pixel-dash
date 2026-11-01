@@ -1020,6 +1020,39 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
+  // 沙暴：黄沙压屏 + 横向沙线，能见度随时间淡入淡出（0=无，1=最浓）
+  if (sandT > 0) {
+    const k = clamp(Math.min(sandT, SAND_STORM - sandT) / 0.8, 0, 1);
+    ctx.fillStyle = 'rgba(206,154,78,' + (0.10 + 0.20 * k).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+    // 细小沙粒：按时间向右掠过，密度固定但每粒速度不同
+    ctx.fillStyle = 'rgba(244,214,150,' + (0.30 * k).toFixed(3) + ')';
+    for (let i = 0; i < 150; i++) {
+      const spd = 150 + (i % 4) * 35;
+      const x = ((i * 71 + time * spd) % (W + 48)) - 24;
+      const y = (((i * 37 + time * 18 + Math.sin(i * 1.7) * 5) % H) + H) % H;
+      ctx.fillRect(Math.round(x), Math.round(y), 2 + (i % 4), 1);
+    }
+    // 缓慢纵向飘移的沙尘带：把画面糊成一片土黄
+    ctx.fillStyle = 'rgba(204,150,80,' + (0.16 * k).toFixed(3) + ')';
+    for (let i = 0; i < 3; i++) {
+      const y = (((i * 64 + time * 26) % (H + 24)) + H + 24) % (H + 24) - 12;
+      ctx.fillRect(0, Math.round(y), W, 12 + i * 4);
+    }
+    // 近处沙幕：更粗的横向流线，进一步糊住视线
+    ctx.fillStyle = 'rgba(232,190,120,' + (0.22 * k).toFixed(3) + ')';
+    for (let i = 0; i < 20; i++) {
+      const x = ((i * 53 + time * (230 + i * 12)) % (W + 80)) - 40;
+      const y = (i * 13 + 6) % H;
+      ctx.fillRect(Math.round(x), y, 18 + (i % 5) * 5, 2);
+    }
+    // 四周再压暗，制造「看不远」的压迫感
+    ctx.globalAlpha = 0.22 * k;
+    ctx.fillStyle = VIGNETTE_DESERT;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+
   // 受伤闪屏
   if (screenFlash > 0) {
     ctx.fillStyle = 'rgba(255,60,90,' + (screenFlash * 0.5) + ')';
