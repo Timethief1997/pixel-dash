@@ -76,7 +76,11 @@ const LEVELS = [
     goal: 'boss', bosses: 1, bossAt: 20, time: 120, desc: '20 秒后 BOSS 登场，击败它才能过关。' },
   { id: 5, name: '熔岩 · 终焉', map: 'lava', col: '#ff8a4a', tag: 'BOSS',
     goal: 'boss', bosses: 2, bossAt: 15, bossGap: 15, time: 160,
-    spawnMul: 1.9, maxAdds: 2, desc: '两只 BOSS 接连登场：首只倒下 15 秒后，第二只出现。' },
+    spawnMul: 1.9, maxAdds: 2,
+    /* 前期猛刷基础杂兵方便升级；首只 BOSS 倒下后降频、停掉远程/自爆怪 */
+    early: { mul: 0.85, adds: 2, simple: true },
+    calm: { mul: 3.4, adds: 1, simple: true },
+    desc: '前期杂兵多、升级快；首只 BOSS 倒下后刷怪明显变少，远程怪不再出现。15 秒后第二只登场。' },
   { id: 6, name: '荒漠 · 沙暴', map: 'desert', col: '#f2c46a', tag: '生存',
     goal: 'survive', time: 70, desc: '流沙拖住脚步，沙暴糊住视线：在荒漠撑满 70 秒。' },
   { id: 7, name: '霓虹 · 夜巡', map: 'neon', col: '#ff6bd6', tag: '击杀',

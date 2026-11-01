@@ -22,6 +22,19 @@ function pickType() {
   return 'chaser';
 }
 
+/* 简单杂兵：只会贴身追人，不远程、不自爆 */
+function pickSimple() {
+  return rand(0, 1.8) < 1 ? 'chaser' : 'fast';
+}
+
+/* 关卡分阶段刷怪：early = 首只 BOSS 登场前，calm = 首只 BOSS 倒下后 */
+function campaignPhase(lv) {
+  if (!lv || lv.goal !== 'boss') return null;
+  if (lv.early && bossGen === 0) return lv.early;
+  if (lv.calm && bossKills > 0) return lv.calm;
+  return null;
+}
+
 /* BOSS 召唤预警：圈到时间才真正生成小怪 */
 function updateMarks(dt) {
   if (!marks.length) return;
@@ -76,12 +89,14 @@ function updateSpawn(dt) {
       // 闯关节奏更稳：目标优先于淹没感
       /* 关卡可单独放宽刷怪：spawnMul 拉长间隔、maxAdds 限制每批数量 */
       const lv = curLevel;
-      const mul = lv && lv.spawnMul ? lv.spawnMul : 1;
+      const phase = campaignPhase(lv);
+      const mul = phase ? phase.mul : lv && lv.spawnMul ? lv.spawnMul : 1;
       spawnTimer = Math.max(0.55, 1.15 - time * 0.006) * mul * diff.spawn;
       let n = Math.min(4, 1 + Math.floor(time / 30));
-      if (lv && lv.maxAdds) n = Math.min(n, lv.maxAdds);
+      if (phase && phase.adds) n = Math.min(4, phase.adds);
+      else if (lv && lv.maxAdds) n = Math.min(n, lv.maxAdds);
       if (enemies.length > 120) n = 0;
-      for (let i = 0; i < n; i++) spawnAtEdge(pickType());
+      for (let i = 0; i < n; i++) spawnAtEdge(phase && phase.simple ? pickSimple() : pickType());
     } else {
       spawnTimer = Math.max(0.34, 1.9 - time * 0.011) * Math.max(0.8, 1 - (wave - 1) * 0.04) * diff.spawn;
       let count = Math.min(6, 1 + Math.floor(time / 75));
