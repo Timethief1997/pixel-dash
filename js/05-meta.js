@@ -473,7 +473,7 @@ function winJingle() {
 function endGame(win, quit) {
   if (state !== 'playing') return;
   state = win ? 'won' : 'dead';
-  stopBgm();
+  /* 这里不停音乐：输赢之后曲子继续放，回主菜单（goMenu）才停 */
   const bank = bankCoins();
   const score = calcScore();
   const prev = bestRecord(modeKey);

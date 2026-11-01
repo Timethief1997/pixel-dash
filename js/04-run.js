@@ -92,6 +92,7 @@ function hideLayers() {
   $('#shopScreen').classList.add('hidden');
   const ms = $('#modeScreen');
   if (ms) ms.classList.add('hidden');
+  $('#musicScreen').classList.add('hidden');
   $('#tutBox').classList.add('hidden');
 }
 

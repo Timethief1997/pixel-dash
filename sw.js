@@ -4,7 +4,7 @@
    - 静态资源（js / css / 图标）stale-while-revalidate：先用缓存秒开，后台静默更新
    - BGM 不进缓存（4.3MB），交给浏览器自身的 HTTP 缓存
    新版本安装后不会自动接管：页面上会出现「发现新版本」提示，点更新才 skipWaiting。 */
-const VERSION = 'v14';
+const VERSION = 'v15';
 const CACHE = 'pixel-dash-' + VERSION;
 
 const PRECACHE = [
@@ -27,6 +27,7 @@ const PRECACHE = [
   'js/11-main.js',
   'js/12-shop.js',
   'js/13-modes.js',
+  'js/15-music.js',
   'js/14-sw.js',
 ];
 

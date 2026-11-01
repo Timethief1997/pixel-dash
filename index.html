@@ -1364,6 +1364,75 @@
   .shopCard.dim{opacity:.55;cursor:not-allowed}
   .shopCard.dim:hover{transform:none;border-color:#7a5228}
   .modeTagline{font-family:var(--mono);font-size:clamp(9px,1.35vmin,12px);color:#c69a6a}
+
+  /* ---- 首页：场景原声 ---- */
+  #musicScreen{
+    background:
+      radial-gradient(circle at 50% 40%, rgba(56,38,20,.40) 0%, rgba(14,10,7,.86) 60%, rgba(8,6,4,.95) 100%);
+    backdrop-filter:blur(7px) saturate(.9);
+  }
+  .musicWrap{width:min(94%,880px)}
+  .musicList{
+    width:100%;flex:1;min-height:0;overflow:auto;padding:.5vmin;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.1vmin;
+  }
+  .musicCard{
+    appearance:none;font:inherit;text-align:left;color:inherit;cursor:pointer;
+    display:flex;align-items:center;gap:1.2vmin;padding:1.1vmin 1.3vmin;border-radius:8px;
+    border:2px solid #7a5228;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,222,168,.05) 0 1px, rgba(0,0,0,0) 1px 8px),
+      linear-gradient(180deg,#7c522f 0%,#553418 58%,#39210f 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,232,190,.30), inset 0 -3px 0 rgba(0,0,0,.32),
+      0 2px 0 rgba(22,13,7,.5), 0 8px 20px rgba(0,0,0,.36);
+    transition:transform .12s,border-color .12s,box-shadow .12s;
+  }
+  .musicCard:hover{
+    transform:translateY(-2px);border-color:#c9955a;
+    box-shadow:
+      inset 0 1px 0 rgba(255,240,205,.40), inset 0 -3px 0 rgba(0,0,0,.32),
+      0 3px 0 rgba(22,13,7,.45), 0 12px 26px rgba(0,0,0,.44);
+  }
+  .musicCard.on{
+    border-color:#ffd76a;
+    box-shadow:
+      inset 0 1px 0 rgba(255,240,205,.40), inset 0 -3px 0 rgba(0,0,0,.32),
+      0 0 0 1px rgba(255,215,106,.35), inset 0 0 22px rgba(255,190,70,.14),
+      0 10px 24px rgba(0,0,0,.44);
+  }
+  .mcDisc{
+    width:4.2vmin;height:4.2vmin;min-width:20px;min-height:20px;flex:none;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:clamp(11px,1.7vmin,16px);color:#241506;
+    background:radial-gradient(circle at 34% 30%, #fff8e0 0%, var(--mc,#ffd76a) 42%, rgba(0,0,0,.35) 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 2px 6px rgba(0,0,0,.35);
+  }
+  .mcBody{display:flex;flex-direction:column;gap:.35vmin;min-width:0;flex:1}
+  .mcName{font-size:clamp(11px,1.8vmin,16px);font-weight:800;letter-spacing:.04em;color:#ffeccb}
+  .mcSub{
+    font-family:var(--mono);font-size:clamp(8px,1.25vmin,11px);color:#c39a6c;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .mcBar{
+    height:4px;border-radius:99px;margin-top:.2vmin;overflow:hidden;
+    background:rgba(0,0,0,.44);box-shadow:inset 0 1px 0 rgba(0,0,0,.45);
+  }
+  .mcBar i{
+    display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg, var(--mc,#ffd76a), #fff0c8);
+    transition:width .12s linear;
+  }
+  .mcState{
+    flex:none;font-size:clamp(9px,1.4vmin,12px);font-weight:800;white-space:nowrap;
+    padding:.25vmin .9vmin;border-radius:99px;
+    border:1px solid rgba(255,220,160,.35);color:#e3bd8d;
+  }
+  .musicCard.on .mcState{color:#2b190a;background:#ffd76a;border-color:#ffd76a}
+  .musicBar{
+    display:flex;align-items:center;justify-content:space-between;gap:2vmin;flex-wrap:wrap;
+    font-size:clamp(10px,1.45vmin,13px);color:#cfa778;
+  }
 </style>
 </head>
 <body>
@@ -1394,6 +1463,7 @@
       <div class="loadout" id="loadoutLine"></div>
       <div class="titleBtns">
         <button class="btn" id="startBtn">选择模式（空格）</button>
+        <button class="btn ghost" id="musicBtn">场景原声</button>
         <button class="btn ghost" id="shopBtn">商店 / 英雄</button>
         <button class="btn ghost" id="histBtn">历史记录</button>
         <button class="btn ghost" id="codexBtn">怪物图鉴</button>
@@ -1421,6 +1491,21 @@
         <button class="rbtn primary" id="modeBack">返回（Esc）</button>
       </div>
     </div>
+  </div>
+
+  <div id="musicScreen" class="layer hidden">
+    <div class="board wide musicWrap">
+      <div class="shopHead">
+        <div class="shopTitle">场 景 原 声</div>
+        <div class="shopCoins" id="musicNow">点一个场景，听它的完整曲目</div>
+      </div>
+      <div class="musicList" id="musicList"></div>
+      <div class="musicBar">
+        <span id="musicHint">每张地图一首曲子 · 进入场景会自动播放 · 失败后音乐会继续，直到你退出</span>
+        <button class="rbtn primary" id="musicBack">返回（Esc）</button>
+      </div>
+    </div>
+    <audio id="musicPlayer" preload="none"></audio>
   </div>
 
   <div id="upgradeScreen" class="layer hidden">
@@ -1625,6 +1710,7 @@
 <script src="js/10-render.js"></script>
 <script src="js/12-shop.js"></script>
 <script src="js/13-modes.js"></script>
+<script src="js/15-music.js"></script>
 <script src="js/11-main.js"></script>
 <script src="js/14-sw.js"></script>
 </body>

@@ -11,6 +11,7 @@ window.addEventListener('keydown', (e) => {
   keys[k] = true;
 
   if (k === 'escape' && !$('#modeScreen').classList.contains('hidden')) { closeModeScreen(); return; }
+  if (k === 'escape' && !$('#musicScreen').classList.contains('hidden')) { closeMusicScreen(); return; }
   if (k === 'escape' && !$('#codexScreen').classList.contains('hidden')) { closeCodex(); return; }
   if (k === 'escape' && !$('#achScreen').classList.contains('hidden')) { closeAch(); return; }
   if (k === 'escape' && !$('#historyScreen').classList.contains('hidden')) { closeHistory(); return; }
@@ -20,6 +21,8 @@ window.addEventListener('keydown', (e) => {
 
   if (k === 'm') { setMuted(!muted); return; }
   if (state === 'menu' && (k === ' ' || k === 'enter')) {
+    /* 原声界面打开时，空格 / 回车等于「返回」 */
+    if (!$('#musicScreen').classList.contains('hidden')) { closeMusicScreen(); return; }
     /* 模式界面已打开时，空格交给界面上的卡片选择，不再直接开局 */
     if ($('#modeScreen').classList.contains('hidden')) openModeScreen();
     return;
@@ -122,6 +125,10 @@ function ensureBgmSrc(track) {
 function inRun() {
   return state === 'playing' || state === 'upgrade' || !!paused;
 }
+/* 结算界面仍算「本局没退出」：输了 / 赢了音乐继续放，回主菜单才停 */
+function keepBgmOn() {
+  return inRun() || state === 'dead' || state === 'won';
+}
 function playBgm() {
   const track = sceneBgmTrack();
   if (!bgmEl || !bgmOn || !track) { stopBgm(); return; }
@@ -145,7 +152,7 @@ function setBgm(v) {
   try { localStorage.setItem(BGM_KEY, bgmOn ? '1' : '0'); } catch (e) {}
   syncBgm();
   /* 在菜单里打开开关不会立刻响，等真正开局再播 */
-  if (bgmOn && inRun()) playBgm();
+  if (bgmOn && keepBgmOn()) playBgm();
   else if (!bgmOn) stopBgm();
 }
 function toggleSetPanel(force) {
@@ -174,7 +181,7 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
   if (!bgmEl) return;
   if (document.hidden) bgmEl.pause();
-  else if (inRun()) playBgm();
+  else if (keepBgmOn()) playBgm();
 });
 /* 所有界面按键统一「叩木头」的触感反馈（键盘触发的 click 用 detail=0 兜底） */
 const KNOCK_SEL = 'button,.rbtn,.btn,.shopCard,.card,.stab,.mtab,.flipbtn,.hbtn';
