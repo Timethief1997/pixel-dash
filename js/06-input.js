@@ -100,6 +100,8 @@ const BGM_TRACKS = {
   snow: 'ice.mp3',          // 冰天雪地
   lava: 'volcano.mp3',      // 熔岩
   neon: 'bgm.mp3',          // 霓虹
+  rain: 'rain.mp3',         // 雨夜
+  reef: 'ocean.mp3',        // 环礁
 };
 let bgmTrack = '';   // 当前已挂载的曲目，换图时才重新 load
 function sceneBgmTrack() { return (map && BGM_TRACKS[map.id]) || ''; }
