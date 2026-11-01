@@ -90,6 +90,11 @@ const LEVELS = [
     goal: 'boss', bosses: 1, bossAt: 18, time: 130, desc: '18 秒后 BOSS 从王陵里爬出，击败它才能过关。' },
   { id: 9, name: '霓虹 · 终章', map: 'neon', col: '#ff6bd6', tag: 'BOSS',
     goal: 'boss', bosses: 2, bossAt: 15, bossGap: 50, time: 170, desc: '霓虹最深处的终章：连续击败 2 只 BOSS。' },
+  { id: 10, name: '熔岩 · 炼狱', map: 'lava', col: '#ff7a3d', tag: 'BOSS',
+    goal: 'boss', bosses: 2, bossAt: 15, bossGap: 15, time: 160,
+    spawnMul: 1.9, maxAdds: 2,
+    /* 复刻第五关调整前的强度：没有前期福利、也没有战后降频，远程/自爆怪全程照旧 */
+    desc: '第五关调整前的原始强度：全程不降压，远程与自爆怪照常出现，两只 BOSS 仍是 15 秒间隔。' },
 ];
 function campaignProgress() {
   try {
