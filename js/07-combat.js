@@ -55,6 +55,7 @@ function tryDash() {
   p.returnBack = false;
   p.returnT = 0;
   p.dashT = p.stats.dashTime;
+  p.slipVx = 0; p.slipVy = 0;   // 冲刺会清掉打滑惯性，落地不飘
   p.invuln = Math.max(p.invuln, p.stats.dashTime + 0.2 + p.stats.invulnBonus);
   /* 忍者 · 潜行：落地后额外 0.25 秒无敌，冲刺期间还能穿过岩石 */
   if (p.heroSkill === 'blink') p.invuln += 0.25;
@@ -213,12 +214,25 @@ function updatePlayer(dt) {
     }
   } else if (p.freezeT <= 0) {
     const m = Math.hypot(ix, iy) || 1;
+    const ice = onIceAt(p.x, p.y);
     // 摇杆推动幅度决定速度：轻推慢走、推满全速（键盘始终全速）
     const spd = p.stats.speed * (stickMag > 0 ? 0.45 + 0.55 * stickMag : 1) *
                 (p.slowT > 0 ? p.slowMul : 1) * map.playerSpd *
-                (onIceAt(p.x, p.y) ? 0.72 : 1);
-    p.x += (ix / m) * spd * dt * (ix || iy ? 1 : 0);
-    p.y += (iy / m) * spd * dt * (ix || iy ? 1 : 0);
+                (ice ? 0.72 : 1);
+    if (map.slip > 0) {
+      /* 雨夜打滑：实际速度向输入方向缓变，起步 / 转向 / 松手都会滑出一段，
+         产生路线偏差；水洼处响应更慢（更飘） */
+      const k = 1 - Math.exp(-map.slip * (ice ? 0.55 : 1) * dt);
+      const tx = ix ? (ix / m) * spd : 0;
+      const ty = iy ? (iy / m) * spd : 0;
+      p.slipVx += (tx - p.slipVx) * k;
+      p.slipVy += (ty - p.slipVy) * k;
+      p.x += p.slipVx * dt;
+      p.y += p.slipVy * dt;
+    } else {
+      p.x += (ix / m) * spd * dt * (ix || iy ? 1 : 0);
+      p.y += (iy / m) * spd * dt * (ix || iy ? 1 : 0);
+    }
     if (ix || iy) {
       p.dirx = ix / m;
       p.diry = iy / m;

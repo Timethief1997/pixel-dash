@@ -227,6 +227,7 @@ function getScene(key) {
   else if (key === 'lava') bakeLava(g);
   else if (key === 'desert') bakeDesert(g);
   else if (key === 'neon') bakeNeon(g);
+  else if (key === 'rain') bakeRain(g);
   else bakeNormal(g);
   SCENE[key] = c;
   return c;
@@ -1147,6 +1148,79 @@ function bakeNeon(g) {
   g.fillRect(0, 0, 2, H); g.fillRect(W - 2, 0, 2, H);
 }
 
+/* ---------- 雨夜：湿透的沥青街面，水洼映着路灯 ---------- */
+function bakeRain(g) {
+  const r = lcg(771003);
+
+  // 湿沥青：深蓝黑，上亮下暗
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#16202e');
+  bg.addColorStop(0.42, '#0d1522');
+  bg.addColorStop(1, '#060a12');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+
+  // 沥青颗粒
+  for (let i = 0; i < 260; i++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * H);
+    g.fillStyle = r() < 0.55 ? 'rgba(150,175,205,.07)' : 'rgba(4,8,14,.35)';
+    g.fillRect(x, y, 1, 1);
+  }
+
+  // 路面砖缝（比霓虹更宽、更旧）
+  g.fillStyle = 'rgba(110,140,180,.07)';
+  for (let x = 0; x < W; x += 24) g.fillRect(x, 0, 1, H);
+  for (let y = 0; y < H; y += 24) g.fillRect(0, y, W, 1);
+
+  // 顶部路灯冷光：从画面上方打下来
+  const lamp = g.createRadialGradient(W / 2, -18, 10, W / 2, -18, 190);
+  lamp.addColorStop(0, 'rgba(170,206,255,.16)');
+  lamp.addColorStop(0.5, 'rgba(120,170,240,.06)');
+  lamp.addColorStop(1, 'rgba(80,130,210,0)');
+  g.fillStyle = lamp;
+  g.fillRect(0, 0, W, H);
+
+  // 水洼：暗蓝积水 + 冷光边缘 + 一条路灯倒影
+  for (let i = 0; i < 12; i++) {
+    const cx = 12 + r() * (W - 24), cy = 12 + r() * (H - 24);
+    const rx = 7 + r() * 15, ry = 2.5 + r() * 4;
+    g.save();
+    g.translate(cx, cy);
+    g.scale(1, ry / rx);
+    g.fillStyle = 'rgba(14,26,44,.70)';
+    g.fillRect(-rx, -rx, rx * 2, rx * 2);
+    g.strokeStyle = 'rgba(140,190,240,.20)';
+    g.lineWidth = 1;
+    g.strokeRect(-rx + 1, -rx + 1, rx * 2 - 2, rx * 2 - 2);
+    g.fillStyle = 'rgba(190,220,255,.22)';
+    g.fillRect(-rx * 0.55, -rx * 0.1, rx * 1.1, 1);
+    g.restore();
+  }
+
+  // 车辙与裂纹
+  for (let i = 0; i < 7; i++) {
+    const y = 20 + r() * (H - 40);
+    g.fillStyle = 'rgba(120,150,190,.10)';
+    g.fillRect(0, Math.floor(y), W, 1);
+  }
+  for (let i = 0; i < 16; i++) {
+    const cx = r() * W, cy = r() * H;
+    g.strokeStyle = 'rgba(6,10,16,.55)';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(cx, cy);
+    g.lineTo(cx + 3 + r() * 8, cy + (r() < 0.5 ? -2 : 2));
+    g.stroke();
+  }
+
+  // 四周压暗，突出雨夜
+  const vign = g.createRadialGradient(W / 2, H / 2, H * 0.34, W / 2, H / 2, W * 0.72);
+  vign.addColorStop(0, 'rgba(2,4,8,0)');
+  vign.addColorStop(1, 'rgba(2,4,8,.55)');
+  g.fillStyle = vign;
+  g.fillRect(0, 0, W, H);
+}
+
 function drawBackdrop() {
   if (map.id === 'snow') {
     ctx.drawImage(getScene('snow'), 0, 0);
@@ -1230,6 +1304,50 @@ function drawBackdrop() {
       ctx.globalAlpha = 0.22 + 0.42 * Math.abs(Math.sin(time * gl.sp + gl.ph));
       ctx.fillStyle = (gl.ph % 2 < 1) ? '#ffd0f5' : '#c8f8ff';
       ctx.fillRect(Math.round(gl.x), Math.round(gl.y), gl.sz, gl.sz);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+  if (map.id === 'rain') {
+    ctx.drawImage(getScene('rain'), 0, 0);
+    // 斜雨：随风向左下，速度快、层层叠加
+    ctx.fillStyle = '#cfe4ff';
+    for (let i = 0; i < 110; i++) {
+      const spd = 240 + (i % 5) * 45;
+      const x = ((i * 67 - time * spd * 0.5) % (W + 30) + W + 30) % (W + 30) - 15;
+      const y = ((i * 53 + time * spd) % (H + 16)) - 8;
+      ctx.globalAlpha = 0.14 + 0.16 * ((i % 4) / 4);
+      ctx.fillRect(Math.round(x), Math.round(y), 1, 3 + (i % 3));
+    }
+    // 落地水花：短促亮点，越接近地面越淡
+    ctx.fillStyle = '#a8ccff';
+    for (let i = 0; i < 30; i++) {
+      const t = (time * 1.6 + i * 0.41) % 1;
+      const x = (i * 83 + time * 40) % W;
+      const y = (i * 59 + time * 13) % H;
+      ctx.globalAlpha = 0.34 * (1 - t);
+      ctx.fillRect(Math.round(x), Math.round(y), 2, 1);
+    }
+    // 雷暴：每 9 秒一次短促泛白 + 一道曲折电光（纯视觉，不扣血）
+    const lt = time % 9;
+    if (lt < 0.36) {
+      ctx.globalAlpha = lt < 0.1 ? 0.46 : 0.20;
+      ctx.fillStyle = '#dff0ff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = '#f2fbff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      let bx = 40 + ((Math.floor(time / 9) * 53) % (W - 100)), by = 4;
+      ctx.moveTo(bx, by);
+      for (let i = 0; i < 7; i++) {
+        bx += 9 + (i % 3) * 6;
+        by += 5 + (i % 2) * 4;
+        ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(Math.round(bx - 2), Math.round(by - 6), 4, 2);
     }
     ctx.globalAlpha = 1;
     return;

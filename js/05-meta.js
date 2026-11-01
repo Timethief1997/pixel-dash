@@ -253,6 +253,10 @@ const ACHS = [
   { id: 'storm',   name: '腥风血雨',   kind: 'pos', desc: '3 秒内连续击杀 12 个敌人',             cond: (r) => r.killTimes.length >= 12 },
   { id: 'legend',  name: '破关者',     kind: 'pos', desc: '通关任意一个闯关关卡',                cond: (r, s, c) => !!c.win && c.mode === 'campaign' },
   { id: 'slayer',  name: '三千暴徒',   kind: 'pos', desc: '单局得分达到 3000',                   cond: () => calcScore() >= 3000 },
+  { id: 'tenclear', name: '十殿老将',  kind: 'pos', desc: '通关前 10 个闯关关卡',                cond: () => campaignProgress() >= 11 },
+  { id: 'allclear', name: '全境制霸',  kind: 'pos', desc: '通关全部闯关关卡',                    cond: () => campaignProgress() > LEVELS.length },
+  { id: 'night5k', name: '长夜不眠',   kind: 'pos', desc: '无尽模式单局得分达到 5000',            cond: () => endless && calcScore() >= 5000 },
+  { id: 'night8k', name: '深夜领主',   kind: 'pos', desc: '无尽模式单局得分达到 8000',            cond: () => endless && calcScore() >= 8000 },
 
   { id: 'coward',  name: '怯战蜥蜴',   kind: 'neg', desc: '连续 30 秒没有击杀任何敌人',           cond: (r) => time - r.lastKill >= 30 },
   { id: 'vanish',  name: '人间蒸发',   kind: 'neg', desc: '连续 60 秒没有受到任何伤害',           cond: (r) => r.noHitT >= 60 },
@@ -267,6 +271,7 @@ const ACHS = [
   { id: 'icesculpt',name:'冰雕艺术',   kind: 'neg', desc: '单局被冰冻 3 次',                      cond: (r) => r.freezes >= 3 },
   { id: 'sweeper', name: '清场大扫除', kind: 'pos', desc: '单局击杀 BOSS 触发清屏',                cond: (r) => r.clears >= 1 },
   { id: 'alchemy', name: '炼金术士',   kind: 'pos', desc: '单局入账 200 金币',                    cond: (r) => r.coinsEarned >= 200 },
+  { id: 'rainsoak', name: '落汤鸡',    kind: 'neg', desc: '在雨夜地图存活满 60 秒',              cond: () => map.id === 'rain' && time >= 60 },
 ];
 
 /* ============================================================

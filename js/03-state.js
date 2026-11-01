@@ -95,6 +95,11 @@ const LEVELS = [
     spawnMul: 1.9, maxAdds: 2,
     /* 复刻第五关调整前的强度：没有前期福利、也没有战后降频，远程/自爆怪全程照旧 */
     desc: '第五关调整前的原始强度：全程不降压，远程与自爆怪照常出现，两只 BOSS 仍是 15 秒间隔。' },
+  { id: 11, name: '雨夜 · 湿滑', map: 'rain', col: '#8fb6ff', tag: '生存',
+    goal: 'survive', time: 70, desc: '暴雨把地面泡成镜子：起步和转向都带惯性，撑满 70 秒。' },
+  { id: 12, name: '雨夜 · 雷暴', map: 'rain', col: '#8fb6ff', tag: 'BOSS',
+    goal: 'boss', bosses: 2, bossAt: 15, bossGap: 40, time: 170, spawnMul: 1.1,
+    desc: '雷暴夜的收官战：双脚打滑，两只 BOSS 先后踏水而来。' },
 ];
 function campaignProgress() {
   try {
@@ -238,6 +243,9 @@ const MAPS = {
   neon:  { id: 'neon',  name: '霓虹', tag: '电栅', col: '#ff6bd6',
     desc: '霓虹地砖下埋着电栅，周期性通电；敌人更快，你也要跑得更快。',
     playerSpd: 1.04, enemySpd: 1.08, rocks: 2, ice: 0, meteor: 0, snow: 0, shock: 8 },
+  rain:  { id: 'rain',  name: '雨夜', tag: '打滑', col: '#8fb6ff',
+    desc: '暴雨把路面浇得发亮：起步、转向、松手都带着惯性，会滑出路线偏差；水洼处更飘。',
+    playerSpd: 0.98, enemySpd: 1, rocks: 3, ice: 5, meteor: 0, snow: 0, slip: 4.2 },
 };
 let mapKey = 'plain';
 try {
@@ -422,6 +430,7 @@ function makePlayer() {
     level: 1, xp: 0, xpNext: 4,
     dashCharges: Math.max(1, st.dashCharges), dashRefill: 0,
     dashT: 0, dashDx: 1, dashDy: 0,
+    slipVx: 0, slipVy: 0,   // 雨夜打滑：惯性速度，起步/转向/松手都会滑一段
     returnT: 0, returnDx: 1, returnDy: 0, returnBack: false,
     hitIds: new Set(),
     dashKillCount: 0,

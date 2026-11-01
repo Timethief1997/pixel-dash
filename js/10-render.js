@@ -745,7 +745,26 @@ function render() {
   // 冰面 / 流沙：踩上去会明显变慢（同一套地形数据，按地图换材质）
   const onSnow = map.id === 'snow';
   const onSand = map.id === 'desert';
+  const onRain = map.id === 'rain';
   for (const i of terrain.ice) {
+    if (onRain) {
+      // 雨夜水洼：暗蓝积水 + 冷光边缘 + 一条路灯倒影
+      ctx.globalAlpha = 0.62;
+      ctx.fillStyle = '#122238';
+      ctx.beginPath();
+      ctx.ellipse(i.x, i.y, i.r, i.r * 0.56, 0, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.40;
+      ctx.strokeStyle = '#7fb2e8';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(i.x, i.y, i.r, i.r * 0.56, 0, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = '#bfe0ff';
+      ctx.fillRect(Math.round(i.x - i.r * 0.5), Math.round(i.y - 1), Math.round(i.r), 1);
+      continue;
+    }
     ctx.globalAlpha = onSnow ? 0.5 : onSand ? 0.42 : 0.30;
     ctx.fillStyle = onSnow ? '#9fd4f2' : onSand ? '#d8a860' : '#bfe9ff';
     ctx.beginPath();
@@ -775,9 +794,9 @@ function render() {
 
   // 岩石：阴影 + 主体 + 顶部高光（雪原雪盖 / 荒漠砂石 / 霓虹金属块）
   const rockBody = map.id === 'snow' ? '#8fa3b8' : map.id === 'desert' ? '#8a6a44'
-    : map.id === 'neon' ? '#232438' : '#3d2b28';
+    : map.id === 'neon' ? '#232438' : map.id === 'rain' ? '#28344a' : '#3d2b28';
   const rockTop = map.id === 'snow' ? '#c6d6e4' : map.id === 'desert' ? '#c99a5e'
-    : map.id === 'neon' ? '#3a3f63' : '#7d4630';
+    : map.id === 'neon' ? '#3a3f63' : map.id === 'rain' ? '#4c6180' : '#7d4630';
   for (const r of terrain.rocks) {
     ctx.fillStyle = 'rgba(0,0,0,.30)';
     ctx.beginPath();
@@ -1005,6 +1024,12 @@ function render() {
   } else if (map.id === 'neon') {
     ctx.fillStyle = VIGNETTE_NEON;
     ctx.fillRect(0, 0, W, H);
+  } else if (map.id === 'rain') {
+    // 雨夜：冷蓝压边更重，雨里看不清远处
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = VIGNETTE;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
   } else {
     ctx.globalAlpha = diffKey === 'casual' ? 0.24 : diffKey === 'normal' ? 0.18 : 1;
     ctx.fillStyle = VIGNETTE;
@@ -1023,32 +1048,41 @@ function render() {
   // 沙暴：黄沙压屏 + 横向沙线，能见度随时间淡入淡出（0=无，1=最浓）
   if (sandT > 0) {
     const k = clamp(Math.min(sandT, SAND_STORM - sandT) / 0.8, 0, 1);
-    ctx.fillStyle = 'rgba(198,142,66,' + (0.14 + 0.28 * k).toFixed(3) + ')';
+    ctx.fillStyle = 'rgba(190,132,58,' + (0.18 + 0.38 * k).toFixed(3) + ')';
     ctx.fillRect(0, 0, W, H);
     // 细小沙粒：按时间向右掠过，密度固定但每粒速度不同
-    ctx.fillStyle = 'rgba(244,214,150,' + (0.45 * k).toFixed(3) + ')';
-    for (let i = 0; i < 200; i++) {
+    ctx.fillStyle = 'rgba(244,214,150,' + (0.55 * k).toFixed(3) + ')';
+    for (let i = 0; i < 240; i++) {
       const spd = 150 + (i % 4) * 35;
       const x = ((i * 71 + time * spd) % (W + 48)) - 24;
       const y = (((i * 37 + time * 18 + Math.sin(i * 1.7) * 5) % H) + H) % H;
       ctx.fillRect(Math.round(x), Math.round(y), 2 + (i % 4), 1);
     }
     // 缓慢纵向飘移的沙尘带：把画面糊成一片土黄
-    ctx.fillStyle = 'rgba(196,138,68,' + (0.24 * k).toFixed(3) + ')';
-    for (let i = 0; i < 4; i++) {
-      const y = (((i * 48 + time * 26) % (H + 24)) + H + 24) % (H + 24) - 12;
-      ctx.fillRect(0, Math.round(y), W, 14 + i * 5);
+    ctx.fillStyle = 'rgba(196,138,68,' + (0.30 * k).toFixed(3) + ')';
+    for (let i = 0; i < 6; i++) {
+      const y = (((i * 34 + time * 26) % (H + 24)) + H + 24) % (H + 24) - 12;
+      ctx.fillRect(0, Math.round(y), W, 16 + i * 6);
     }
     // 近处沙幕：更粗的横向流线，进一步糊住视线
-    ctx.fillStyle = 'rgba(232,190,120,' + (0.32 * k).toFixed(3) + ')';
-    for (let i = 0; i < 26; i++) {
+    ctx.fillStyle = 'rgba(232,190,120,' + (0.40 * k).toFixed(3) + ')';
+    for (let i = 0; i < 36; i++) {
       const x = ((i * 53 + time * (230 + i * 12)) % (W + 80)) - 40;
-      const y = (i * 7 + 4) % H;
-      ctx.fillRect(Math.round(x), y, 20 + (i % 5) * 6, 2);
+      const y = (i * 5 + 3) % H;
+      ctx.fillRect(Math.round(x), y, 24 + (i % 5) * 8, 2);
+    }
+    // 贴脸沙墙：大块半透明横条，只留中间一线能看清
+    ctx.fillStyle = 'rgba(214,164,88,' + (0.16 * k).toFixed(3) + ')';
+    for (let i = 0; i < 3; i++) {
+      const y = (((i * 62 + time * 9) % (H + 40)) + H + 40) % (H + 40) - 20;
+      ctx.fillRect(0, Math.round(y), W, 26);
     }
     // 四周再压暗，制造「看不远」的压迫感
-    ctx.globalAlpha = 0.32 * k;
+    ctx.globalAlpha = 0.44 * k;
     ctx.fillStyle = VIGNETTE_DESERT;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 0.22 * k;
+    ctx.fillStyle = 'rgba(28,16,6,1)';
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
   }
