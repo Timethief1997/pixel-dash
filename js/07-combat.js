@@ -77,6 +77,7 @@ function updatePlayer(dt) {
     if (p.slowT <= 0) p.slowMul = 1;
   }
   if (p.freezeT > 0) p.freezeT -= dt;
+  if (p.lavaTick > 0) p.lavaTick -= dt;
 
   // 中毒：每秒固定掉 1 点血，且期间无法吸血
   if (p.poisonT > 0) {
@@ -173,7 +174,8 @@ function updatePlayer(dt) {
     const m = Math.hypot(ix, iy) || 1;
     // 摇杆推动幅度决定速度：轻推慢走、推满全速（键盘始终全速）
     const spd = p.stats.speed * (stickMag > 0 ? 0.45 + 0.55 * stickMag : 1) *
-                (p.slowT > 0 ? p.slowMul : 1);
+                (p.slowT > 0 ? p.slowMul : 1) * map.playerSpd *
+                (onIceAt(p.x, p.y) ? 0.72 : 1);
     p.x += (ix / m) * spd * dt * (ix || iy ? 1 : 0);
     p.y += (iy / m) * spd * dt * (ix || iy ? 1 : 0);
     if (ix || iy) {
@@ -194,6 +196,22 @@ function updatePlayer(dt) {
     blip(80, 0.18, 'square', 0.07, -40);
   }
 
+  // 关羽：冲刺结束挥出一圈刀光（额外范围伤害，不算嗜血击杀）
+  if (wasDashing && p.dashT <= 0 && p.heroSkill === 'slash') {
+    const R = 24 + p.stats.dashRadius;
+    effects.push({ x: p.x, y: p.y, r: R, life: 0.28, max: 0.28, color: p.heroCol });
+    for (const e of enemies) {
+      if (e.dead) continue;
+      if (Math.hypot(e.x - p.x, e.y - p.y) < R + e.r) {
+        damageEnemy(e, Math.max(2, Math.round(p.stats.dashDamage * 0.9)), p.x, p.y);
+      }
+    }
+    blip(760, 0.12, 'triangle', 0.06, 80);
+  }
+
+  p.x = clamp(p.x, 6, W - 6);
+  p.y = clamp(p.y, 6, H - 6);
+  resolveRocks(p);
   p.x = clamp(p.x, 6, W - 6);
   p.y = clamp(p.y, 6, H - 6);
 
@@ -437,7 +455,7 @@ function spawnEnemy(type, x, y, plain) {
   pts = Math.max(1, Math.round(pts));
   enemies.push({
     id: ++eid, type, x, y, hp, maxHp: hp, pts,
-    r: t.r, speed: t.speed * spMul,
+    r: t.r, speed: t.speed * spMul * map.enemySpd,
     dmg: t.dmg + (tier >= 4 ? 1 : 0),
     flash: 0, auraT: 0, fireT: 0, bossT: 0,
     lungeT: 0, boost: 0, chargeT: 1.2, bossStep: 0, fuseT: 0,
@@ -804,17 +822,55 @@ function updateZones(dt) {
   trails = trails.filter((t) => t.life > 0);
 }
 
-/* 毒雾区域：站在里面会封锁吸血并持续中毒 */
+/* 地面区域：毒雾封锁吸血；熔岩持续烫伤 */
 function updateHazards(dt) {
   if (!hazards.length) return;
   for (const h of hazards) {
     h.life -= dt;
-    if (Math.hypot(player.x - h.x, player.y - h.y) < h.r) {
-      applyHealBlock(0.4);
-      if (player.poisonT <= 0.2) applyPoison(2.4);
+    const d = Math.hypot(player.x - h.x, player.y - h.y);
+    if (d < h.r) {
+      if (h.kind === 'lava') {
+        if (player.lavaTick <= 0) {
+          player.lavaTick = 1.2;
+          player.hp -= 1;
+          texts.push({ x: player.x, y: player.y - 10, vy: -18, life: 0.7, text: '-1 烫伤', color: '#ff9a5c' });
+          burst(player.x, player.y, '#ff8a4a', 8, 70);
+          blip(150, 0.1, 'square', 0.05, -30);
+          if (player.hp <= 0) { endGame(false); return; }
+        }
+      } else {
+        applyHealBlock(0.4);
+        if (player.poisonT <= 0.2) applyPoison(2.4);
+      }
     }
   }
   hazards = hazards.filter((h) => h.life > 0);
+}
+
+/* 熔岩图：预警 1.1 秒后陨石砸落，留下短暂熔岩 */
+function updateMapTerrain(dt) {
+  if (!map.meteor) return;
+  meteorT -= dt;
+  if (meteorT <= 0) {
+    meteorT = map.meteor + rand(-1.5, 1.5);
+    meteors.push({ x: rand(16, W - 16), y: rand(16, H - 16), warn: 1.1, life: 2.6, max: 2.6, explode: false });
+  }
+  const p = player;
+  for (const m of meteors) {
+    m.life -= dt;
+    if (m.explode) continue;
+    m.warn -= dt;
+    if (m.warn <= 0) {
+      m.explode = true;
+      hazards.push({ x: m.x, y: m.y, r: 15, life: 2.2, max: 2.2, kind: 'lava' });
+      effects.push({ x: m.x, y: m.y, r: 16, life: 0.32, max: 0.32, color: '#ff8a4a' });
+      burst(m.x, m.y, '#ffb15c', 12, 95);
+      shake = Math.max(shake, 6);
+      blip(110, 0.16, 'square', 0.06, -50);
+      if (p && state === 'playing' && Math.hypot(p.x - m.x, p.y - m.y) < 15 + p.r) hitPlayer({ x: m.x, y: m.y });
+    }
+  }
+  meteors = meteors.filter((m) => m.life > 0);
 }
 
 function updateParticles(dt) {

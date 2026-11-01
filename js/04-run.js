@@ -12,9 +12,12 @@ function resetWorld() {
   coins = 0; nextEvent = 20; frenzyT = 0;
   enemies = []; orbs = []; bullets = []; ebullets = []; drops = [];
   particles = []; trails = []; effects = []; texts = []; marks = []; hazards = [];
-  rerolls = 2;   // 每局开局送两次换牌机会
+  meteors = [];
+  meteorT = map.meteor > 0 ? 6 : 0;   // 熔岩图：开局 6 秒后第一颗陨石
   eid = 0;
+  generateTerrain();
   player = makePlayer();
+  rerolls = 2 + (player.heroRerolls || 0);   // 每局两次换牌，幸运英雄额外加成
   resetAchRun();
   tutorial = makeTutorial();
 }
@@ -28,6 +31,7 @@ function hideLayers() {
   $('#historyScreen').classList.add('hidden');
   $('#codexScreen').classList.add('hidden');
   $('#achScreen').classList.add('hidden');
+  $('#shopScreen').classList.add('hidden');
   $('#tutBox').classList.add('hidden');
 }
 
@@ -100,6 +104,7 @@ function goMenu() {
   hideLayers();
   layers.title.classList.remove('hidden');
   refreshBestLine();
+  refreshLoadout();
   blip(330, 0.09, 'triangle', 0.045, -120);
 }
 

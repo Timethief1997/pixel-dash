@@ -463,6 +463,14 @@ function drawPlayer() {
   ctx.arc(x, y, 24, 0, TAU);
   ctx.fill();
 
+  // 出战英雄的专属色环，让不同角色一眼可辨
+  ctx.globalAlpha = 0.38;
+  ctx.strokeStyle = p.heroCol || '#63d9ff';
+  ctx.beginPath();
+  ctx.arc(x, y, 9, 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
   // 冲刺残影
   if (p.dashT > 0) {
     ctx.globalAlpha = 0.28;
@@ -534,6 +542,70 @@ function render() {
 
   // 背景（按难度主题）
   drawBackdrop();
+
+  // 地图环境：雪原风雪与冰面 / 熔岩热浪
+  if (mapKey === 'snow') {
+    ctx.fillStyle = 'rgba(190,226,255,.10)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#eaf6ff';
+    for (let i = 0; i < 34; i++) {
+      const x = ((i * 97 + time * (14 + (i % 4) * 5)) % (W + 8)) - 4;
+      const y = ((i * 61 + time * 24) % (H + 8)) - 4;
+      ctx.globalAlpha = 0.25 + 0.25 * ((i % 5) / 5);
+      ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+    }
+    ctx.globalAlpha = 1;
+  } else if (mapKey === 'lava') {
+    ctx.fillStyle = 'rgba(255,94,32,.07)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 冰面：淡蓝椭圆，踩上去明显变慢
+  for (const i of terrain.ice) {
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = '#bfe9ff';
+    ctx.beginPath();
+    ctx.ellipse(i.x, i.y, i.r, i.r * 0.62, 0, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(i.x - 2, i.y - 2, i.r * 0.66, i.r * 0.36, 0, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // 岩石：阴影 + 主体 + 顶部高光
+  for (const r of terrain.rocks) {
+    ctx.fillStyle = 'rgba(0,0,0,.30)';
+    ctx.beginPath();
+    ctx.ellipse(r.x + 1, r.y + 3, r.r, r.r * 0.55, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = mapKey === 'snow' ? '#8fa3b8' : '#4a3a3a';
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = mapKey === 'snow' ? '#c6d6e4' : '#6b4a3a';
+    ctx.fillRect(Math.round(r.x - r.r / 2), Math.round(r.y - r.r / 2), Math.max(2, Math.round(r.r)), 2);
+  }
+
+  // 陨石预警：闪烁落点圈
+  for (const m of meteors) {
+    if (m.explode) continue;
+    const k = 1 - Math.max(0, m.warn) / 1.1;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 18);
+    ctx.globalAlpha = 0.25 + 0.35 * pulse;
+    ctx.strokeStyle = '#ff8a4a';
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 15, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#ff8a4a';
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 15 * k, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   if (!player) { ctx.restore(); return; }
 
@@ -608,14 +680,16 @@ function render() {
     }
   }
 
-  // 毒雾区域：绿点云，随剩余时间淡出
+  // 地面区域：毒雾绿点云 / 熔岩橙红余烬，随剩余时间淡出
   for (const h of hazards) {
-    const a = Math.min(1, h.life / 5);
-    const pulse = 0.5 + 0.5 * Math.sin(time * 6 + h.x);
-    ctx.globalAlpha = 0.10 * a;
-    ctx.fillStyle = '#7ddc7d';
+    const lava = h.kind === 'lava';
+    const a = Math.min(1, h.life / (h.max || 5));
+    const pulse = 0.5 + 0.5 * Math.sin(time * (lava ? 9 : 6) + h.x);
+    ctx.globalAlpha = (lava ? 0.16 : 0.10) * a;
+    ctx.fillStyle = lava ? '#ff6a3d' : '#7ddc7d';
     ctx.fillRect(Math.round(h.x - h.r), Math.round(h.y - h.r), h.r * 2, h.r * 2);
     ctx.globalAlpha = (0.30 + 0.18 * pulse) * a;
+    ctx.fillStyle = lava ? '#ffd166' : '#7ddc7d';
     const n = Math.max(18, Math.round(h.r * 2.2));
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * TAU + time * 0.5;

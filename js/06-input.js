@@ -13,6 +13,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'escape' && !$('#codexScreen').classList.contains('hidden')) { closeCodex(); return; }
   if (k === 'escape' && !$('#achScreen').classList.contains('hidden')) { closeAch(); return; }
   if (k === 'escape' && !$('#historyScreen').classList.contains('hidden')) { closeHistory(); return; }
+  if (k === 'escape' && !$('#shopScreen').classList.contains('hidden')) { closeShop(); return; }
   if (k === 'p') { setPaused(!paused); return; }
   if (k === 'escape' && paused) { setPaused(false); return; }
 

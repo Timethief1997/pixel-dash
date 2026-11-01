@@ -35,4 +35,5 @@ function loop(ts) {
 
 refreshBestLine();
 resetWorld();
+refreshLoadout();
 requestAnimationFrame(loop);

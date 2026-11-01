@@ -23,8 +23,11 @@ let eid = 0;
 let player = null;
 let enemies = [], orbs = [], bullets = [], ebullets = [], drops = [];
 let particles = [], trails = [], effects = [], texts = [], marks = [];
-let hazards = [];     // 地面毒雾 / 腐蚀区域
+let hazards = [];     // 地面毒雾 / 腐蚀区域 / 熔岩
 let tutorial = null;  // 新手教程状态
+let terrain = { rocks: [], ice: [] };   // 地图静态地形
+let meteors = [];    // 熔岩图的陨石
+let meteorT = 0;
 
 const keys = {};
 
@@ -51,6 +54,141 @@ function applyDiff(k) {
   const d = $('#diffDesc');
   if (d) d.textContent = DIFF_HINT[k];
   try { localStorage.setItem(DKEY, k); } catch (e) {}
+}
+
+/* ---------- 小英雄（商店解锁，出战角色） ---------- */
+const HERO_KEY = 'pixelDash.hero.v1';
+const HERO_OWN_KEY = 'pixelDash.heroes.v1';
+const HEROES = [
+  { id: 'scout',  name: '小勇',   price: 0,   col: '#63d9ff', tag: '均衡',
+    hp: 8,  speed: 0,   dashDamage: 0,  dashRadius: 0, dashCharges: 0, rerolls: 0, skill: 'none',
+    desc: '标准身板：冲刺伤害与充能都居中，第一次冒险就从这里开始。' },
+  { id: 'guanyu', name: '关羽',   price: 600, col: '#ff6b7a', tag: '斩击',
+    hp: 7,  speed: 2,   dashDamage: 2,  dashRadius: 2, dashCharges: 0, rerolls: 0, skill: 'slash',
+    desc: '冲刺结束挥出一圈刀光，额外斩击周围敌人；血少一点，斩得狠一点。' },
+  { id: 'truck',  name: '泥头车', price: 450, col: '#ffb15c', tag: '重装',
+    hp: 11, speed: -14, dashDamage: 3,  dashRadius: 5, dashCharges: -1, rerolls: 0, skill: 'crush',
+    desc: '血厚、撞得狠、冲刺范围大，但跑得慢，充能少一次。' },
+  { id: 'moto',   name: '摩托',   price: 800, col: '#9ef58a', tag: '极速',
+    hp: 6,  speed: 18,  dashDamage: -1, dashRadius: -2, dashCharges: 1, rerolls: 0, skill: 'rush',
+    desc: '跑得最快，多一次冲刺充能；身板很脆，撞一下就得记路。' },
+  { id: 'diaper', name: '尿不湿', price: 300, col: '#ffd76a', tag: '幸运',
+    hp: 10, speed: -4,  dashDamage: 0,  dashRadius: 0, dashCharges: 0, rerolls: 2, skill: 'lucky',
+    desc: '又厚又软：血多、每局多 2 次换牌机会，冲刺偏弱但很能苟。' },
+];
+
+let heroKey = 'scout';
+try {
+  const hk = localStorage.getItem(HERO_KEY);
+  if (hk && HEROES.some((h) => h.id === hk)) heroKey = hk;
+} catch (e) {}
+
+function currentHero() {
+  return HEROES.find((h) => h.id === heroKey) || HEROES[0];
+}
+function heroOwned(id) {
+  if (id === 'scout') return true;
+  try {
+    const own = JSON.parse(localStorage.getItem(HERO_OWN_KEY) || '[]');
+    return Array.isArray(own) && own.includes(id);
+  } catch (e) { return false; }
+}
+function equipHero(id) {
+  if (!heroOwned(id)) return false;
+  heroKey = id;
+  try { localStorage.setItem(HERO_KEY, id); } catch (e) {}
+  refreshLoadout();
+  if (typeof renderShop === 'function') renderShop();
+  return true;
+}
+/* 购买：直接扣累计金币；已拥有则切换出战 */
+function buyHero(id) {
+  const h = HEROES.find((x) => x.id === id);
+  if (!h) return false;
+  if (heroOwned(id)) return equipHero(id);
+  const total = loadCoins();
+  if (total < h.price) {
+    toast('金币不足 · 还差 ' + (h.price - total) + ' 金币');
+    blip(160, 0.1, 'square', 0.05, -40);
+    return false;
+  }
+  saveCoins(total - h.price);
+  const own = [];
+  try { const v = JSON.parse(localStorage.getItem(HERO_OWN_KEY) || '[]'); if (Array.isArray(v)) own.push(...v); } catch (e) {}
+  if (!own.includes(id)) own.push(id);
+  try { localStorage.setItem(HERO_OWN_KEY, JSON.stringify(own)); } catch (e) {}
+  equipHero(id);
+  toast('解锁英雄 · ' + h.name + '（-' + h.price + ' 金币）', true);
+  blip(880, 0.12, 'triangle', 0.07, 90);
+  setTimeout(() => blip(1180, 0.14, 'triangle', 0.06, 70), 120);
+  return true;
+}
+
+/* ---------- 地图 / 地形 ---------- */
+const MAP_KEY = 'pixelDash.map.v1';
+const MAPS = {
+  plain: { id: 'plain', name: '苔原', tag: '标准', col: '#7dffb0',
+    desc: '没有额外地形，最稳的练习场，冲刺距离就是你的安全线。',
+    playerSpd: 1, enemySpd: 1, rocks: 0, ice: 0, meteor: 0, snow: 0 },
+  snow:  { id: 'snow',  name: '雪原', tag: '减速', col: '#8fd8ff',
+    desc: '风雪压低移动速度；冰面打滑、岩石挡路，冲刺是唯一的快路。',
+    playerSpd: 0.86, enemySpd: 0.92, rocks: 3, ice: 5, meteor: 0, snow: 1 },
+  lava:  { id: 'lava',  name: '熔岩', tag: '陨石', col: '#ff8a4a',
+    desc: '陨石持续坠落，踩进熔岩会烫伤；敌人更快，但你的速度不受影响。',
+    playerSpd: 1, enemySpd: 1.05, rocks: 3, ice: 0, meteor: 8, snow: 0 },
+};
+let mapKey = 'plain';
+try {
+  const mk = localStorage.getItem(MAP_KEY);
+  if (mk && MAPS[mk]) mapKey = mk;
+} catch (e) {}
+let map = MAPS[mapKey];
+
+function applyMap(k) {
+  if (!MAPS[k]) k = 'plain';
+  mapKey = k; map = MAPS[k];
+  try { localStorage.setItem(MAP_KEY, k); } catch (e) {}
+  refreshLoadout();
+  if (typeof renderShop === 'function') renderShop();
+}
+
+/* 生成静态地形：避开出生点和屏幕边缘，保证第一眼能看清 */
+function generateTerrain() {
+  terrain = { rocks: [], ice: [] };
+  const rng = lcg((Math.floor(Math.random() * 1e9) + 1) % 2147483647);
+  const clearOfSpawn = (x, y) => Math.hypot(x - W / 2, y - H / 2) > 48;
+  for (let i = 0; i < map.rocks; i++) {
+    for (let tries = 0; tries < 12; tries++) {
+      const x = 16 + Math.floor(rng() * (W - 32)), y = 16 + Math.floor(rng() * (H - 32));
+      if (!clearOfSpawn(x, y)) continue;
+      terrain.rocks.push({ x, y, r: 5 + Math.floor(rng() * 4) });
+      break;
+    }
+  }
+  for (let i = 0; i < map.ice; i++) {
+    for (let tries = 0; tries < 12; tries++) {
+      const x = 20 + Math.floor(rng() * (W - 40)), y = 20 + Math.floor(rng() * (H - 40));
+      if (!clearOfSpawn(x, y)) continue;
+      terrain.ice.push({ x, y, r: 9 + Math.floor(rng() * 8) });
+      break;
+    }
+  }
+}
+function onIceAt(x, y) {
+  for (const i of terrain.ice) if (Math.hypot(x - i.x, y - i.y) < i.r) return true;
+  return false;
+}
+/* 岩石阻挡：把玩家推出圆外，不做寻路，避免影响敌人围攻 */
+function resolveRocks(p) {
+  for (const r of terrain.rocks) {
+    const dx = p.x - r.x, dy = p.y - r.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const min = r.r + p.r;
+    if (d < min) {
+      p.x = r.x + (dx / d) * min;
+      p.y = r.y + (dy / d) * min;
+    }
+  }
 }
 
 /* ---------- 敌人类型 ---------- */
@@ -155,13 +293,24 @@ function baseStats() {
 }
 
 function makePlayer() {
+  const hero = currentHero();
+  const st = baseStats();
+  st.speed += hero.speed;
+  st.dashDamage += hero.dashDamage;
+  st.dashRadius += hero.dashRadius;
+  st.dashCharges += hero.dashCharges;
   return {
+    hero: hero.id,
+    heroSkill: hero.skill,
+    heroCol: hero.col,
+    heroHp: hero.hp,
+    heroRerolls: hero.rerolls,
     x: W / 2, y: H / 2,
     dirx: 1, diry: 0,
-    hp: 8, maxHp: 8, r: 5,
+    hp: hero.hp, maxHp: hero.hp, r: 5,
     invuln: 0, flash: 0,
     level: 1, xp: 0, xpNext: 4,
-    dashCharges: 2, dashRefill: 0,
+    dashCharges: Math.max(1, st.dashCharges), dashRefill: 0,
     dashT: 0, dashDx: 1, dashDy: 0,
     hitIds: new Set(),
     dashKillCount: 0,
@@ -170,8 +319,8 @@ function makePlayer() {
     healCd: 0, healBlock: 0,
     poisonT: 0, poisonTick: 0,
     slowT: 0, slowMul: 1,
-    freezeT: 0,
-    upg: {}, stats: baseStats(),
+    freezeT: 0, lavaTick: 0,
+    upg: {}, stats: st,
   };
 }
 

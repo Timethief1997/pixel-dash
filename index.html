@@ -1031,6 +1031,78 @@
     #upgradeScreen .flipbtn{width:38px;height:38px}
     #upgradeScreen .rr-token{font-size:10px}
   }
+  /* ---- 出战信息 / 商店 ---- */
+  .loadout{
+    display:flex;gap:1.4vmin;flex-wrap:wrap;justify-content:center;
+    font-family:var(--mono);font-size:clamp(10px,1.55vmin,15px);
+    color:#b7c9dd;letter-spacing:.03em;
+  }
+  .loadout b{color:#ffd76a;font-weight:700}
+  #shopScreen{background:rgba(7,9,15,.9)}
+  .shopWrap{
+    display:flex;flex-direction:column;gap:1.5vmin;
+    width:min(95%,780px);max-height:88%;min-height:0;
+    padding:2.4vmin 2.8vmin 2.2vmin;border-radius:12px;
+    border:1px solid #2b3550;
+    background:linear-gradient(180deg,rgba(22,29,48,.98),rgba(9,12,22,.99));
+    box-shadow:0 18px 54px rgba(0,0,0,.62), inset 0 1px 0 rgba(120,180,255,.16);
+  }
+  .shopHead{display:flex;align-items:center;justify-content:space-between;gap:2vmin;flex-wrap:wrap}
+  .shopTitle{font-size:clamp(16px,3.1vmin,29px);font-weight:800;letter-spacing:.16em;color:#dff2ff}
+  .shopCoins{font-family:var(--mono);font-size:clamp(12px,2vmin,19px);color:#ffd76a;letter-spacing:.04em}
+  .shopCoins b{font-size:1.18em}
+  .stabs{display:flex;gap:1vmin}
+  .stab{
+    appearance:none;font:inherit;font-weight:700;cursor:pointer;
+    font-size:clamp(11px,1.7vmin,16px);letter-spacing:.08em;
+    padding:.65vmin 2.1vmin;border-radius:5px;
+    border:1px solid #3a4768;background:#151d30;color:#a9c0da;
+    transition:background .14s,border-color .14s,color .14s;
+  }
+  .stab.on{border-color:#63d9ff;background:#63d9ff;color:#08131d}
+  .shopGrid,.mapGrid{
+    flex:1;min-height:0;overflow:auto;padding:.5vmin;
+    align-content:start;
+  }
+  .shopGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:1.2vmin}
+  .mapGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.2vmin}
+  .shopCard{
+    appearance:none;font:inherit;text-align:left;color:inherit;cursor:pointer;
+    display:flex;flex-direction:column;gap:.55vmin;
+    padding:1.35vmin;border-radius:8px;border:1px solid #2b3550;
+    background:linear-gradient(180deg,rgba(31,40,63,.94),rgba(14,18,30,.97));
+    transition:transform .12s,border-color .12s,box-shadow .12s;
+  }
+  .shopCard:hover{transform:translateY(-2px);border-color:#4b6690}
+  .shopCard.on{border-color:#ffd76a;box-shadow:0 0 0 1px rgba(255,215,106,.35), inset 0 0 22px rgba(255,200,60,.10)}
+  .scTop{display:flex;align-items:center;gap:1vmin}
+  .scIcon{
+    width:4.2vmin;height:4.2vmin;min-width:16px;min-height:16px;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:clamp(11px,1.8vmin,17px);color:#08121c;
+  }
+  .scName{font-size:clamp(13px,2.1vmin,19px);font-weight:800;letter-spacing:.04em}
+  .scTag{
+    font-size:clamp(9px,1.3vmin,12px);padding:.1vmin .8vmin;
+    border-radius:99px;border:1px solid currentColor;color:#9fb9d6;white-space:nowrap;
+  }
+  .scDesc{font-size:clamp(10px,1.5vmin,14px);line-height:1.48;color:#a9bdd4;min-height:3.5em}
+  .scStat{
+    display:grid;grid-template-columns:1fr 1fr;gap:.2vmin 1vmin;
+    font-family:var(--mono);font-size:clamp(9px,1.4vmin,13px);color:#b9cfe4;
+  }
+  .scStat b{color:#fff;font-variant-numeric:tabular-nums}
+  .scBtn{
+    margin-top:.3vmin;text-align:center;font-weight:800;
+    font-size:clamp(11px,1.65vmin,15px);padding:.65vmin;border-radius:5px;
+    border:1px solid #3a4768;background:#1c2740;color:#cfe6ff;
+  }
+  .shopCard.on .scBtn{border-color:#ffd76a;color:#ffd76a}
+  .shopCard.lock .scBtn{border-color:#6b5a2e;color:#ffd76a}
+  .shopFoot{
+    display:flex;align-items:center;justify-content:space-between;gap:2vmin;flex-wrap:wrap;
+    font-size:clamp(10px,1.45vmin,13px);color:#8fa6c0;
+  }
 </style>
 </head>
 <body>
@@ -1064,8 +1136,10 @@
         <button class="diffbtn" data-d="hard">硬核</button>
       </div>
       <div class="diffdesc" id="diffDesc"></div>
+      <div class="loadout" id="loadoutLine"></div>
       <div class="titleBtns">
         <button class="btn" id="startBtn">开始（空格）</button>
+        <button class="btn ghost" id="shopBtn">商店 / 英雄</button>
         <button class="btn ghost" id="histBtn">历史记录</button>
         <button class="btn ghost" id="codexBtn">怪物图鉴</button>
         <button class="btn ghost" id="achBtn">成就</button>
@@ -1146,6 +1220,24 @@
       <div class="agrid" id="achGrid"></div>
       <div class="anote" id="achNote"></div>
       <button class="rbtn primary" id="achBackBtn">返回（Esc）</button>
+    </div>
+  </div>
+
+  <div id="shopScreen" class="layer hidden">
+    <div class="shopWrap">
+      <div class="shopHead">
+        <div class="shopTitle">商 店 · 英 雄</div>
+        <div class="shopCoins">金币 <b id="shopCoinsVal">0</b></div>
+      </div>
+      <div class="stabs">
+        <button class="stab on" data-tab="hero">小英雄</button>
+        <button class="stab" data-tab="map">地图</button>
+      </div>
+      <div class="shopGrid" id="shopGrid"></div>
+      <div class="shopFoot">
+        <span id="shopTip">金币来自局中拾取与结算，购买后永久解锁</span>
+        <button class="rbtn primary" id="shopClose">返回（Esc）</button>
+      </div>
     </div>
   </div>
 
@@ -1236,6 +1328,7 @@
 <script src="js/08-spawn.js"></script>
 <script src="js/09-shop.js"></script>
 <script src="js/10-render.js"></script>
+<script src="js/12-shop.js"></script>
 <script src="js/11-main.js"></script>
 </body>
 </html>

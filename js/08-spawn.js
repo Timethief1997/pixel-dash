@@ -148,6 +148,8 @@ function update(dt) {
 
   updateZones(dt);
   updateHazards(dt);
+  if (state !== 'playing') return;
+  updateMapTerrain(dt);
   updateOrbs(dt);
   if (state !== 'playing') return;
   updateDrops(dt);
