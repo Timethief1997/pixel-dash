@@ -13,7 +13,7 @@ function stopShopAnim() {
 }
 function startShopAnim() {
   stopShopAnim();
-  if (shopTab !== 'hero' || typeof HERO_ART === 'undefined') return;
+  if (shopTab === 'map' || typeof HERO_ART === 'undefined') return;
   shopAnimTimer = setInterval(() => {
     shopAnim ^= 1;
     for (const cv of document.querySelectorAll('#shopGrid .heroArt')) {
@@ -33,7 +33,8 @@ function refreshLoadout() {
   el.innerHTML =
     '出战 <b style="color:' + h.col + '">' + h.name + '</b>' +
     ' · 无尽地图 <b>' + map.name + '</b>' +
-    ' · 金币 <b>' + loadCoins() + '</b>';
+    ' · 金币 <b>' + loadCoins() + '</b>' +
+    ' · 勋章 <b>' + medalBalance() + '</b>/' + MEDAL_CAP;
 }
 
 function heroStatLine(h) {
@@ -80,6 +81,36 @@ function heroCardsHtml() {
   }).join('');
 }
 
+function medalCardsHtml() {
+  const bal = medalBalance();
+  return HEROES.map((h) => {
+    const owned = heroOwned(h.id);
+    const on = heroKey === h.id;
+    const cost = h.medal || 0;
+    const btn = on ? '出 战 中' : owned ? '装 备' : (bal >= cost ? '兑换 · ' + cost + ' 勋章' : '还需 ' + (cost - bal) + ' 勋章');
+    return (
+      '<div class="shopCard' + (on ? ' on' : '') + (owned ? '' : ' lock') + '" role="button" tabindex="0" data-exchange="' + h.id + '">' +
+        '<div class="heroPortrait" style="--hc:' + h.col + '33">' +
+          '<canvas class="heroArt" data-art="' + h.id + '" width="16" height="16"></canvas>' +
+          '<span class="heroTag ' + (on ? '' : owned ? 'soft' : 'lock') + '">' +
+            (on ? '出战中' : owned ? '已拥有' : '可兑换') +
+          '</span>' +
+        '</div>' +
+        '<div class="scTop">' +
+          '<span class="scIcon" style="background:' + h.col + '">' + h.name.slice(0, 1) + '</span>' +
+          '<span class="scName">' + h.name + '</span>' +
+          '<span class="scTag">' + h.tag + '</span>' +
+        '</div>' +
+        '<div class="scDesc">' + h.desc + '</div>' +
+        heroStatLine(h) +
+        '<div class="scStat" style="grid-template-columns:1fr">兑换价 <b>' + cost + ' 勋章</b> · ' +
+          (owned ? '已兑换 1/1' : '库存 1/1') + '</div>' +
+        '<div class="scBtn">' + btn + '</div>' +
+      '</div>'
+    );
+  }).join('');
+}
+
 function mapCardsHtml() {
   return Object.keys(MAPS).map((k) => {
     const m = MAPS[k];
@@ -112,12 +143,26 @@ function renderShop() {
   if (!grid) return;
   const cv = $('#shopCoinsVal');
   if (cv) cv.textContent = loadCoins();
+  const mv = $('#shopMedalsVal');
+  if (mv) mv.textContent = medalBalance();
+  const mc = $('#shopMedalsCap');
+  if (mc) mc.textContent = MEDAL_CAP;
   /* 只处理商店自己的页签：模式界面的页签也复用了 .stab 样式 */
   for (const b of document.querySelectorAll('#shopScreen .stab')) {
     b.classList.toggle('on', (b.dataset && b.dataset.tab) === shopTab);
   }
-  grid.className = shopTab === 'hero' ? 'shopGrid' : 'mapGrid';
-  grid.innerHTML = shopTab === 'hero' ? heroCardsHtml() : mapCardsHtml();
+  grid.className = shopTab === 'map' ? 'mapGrid' : 'shopGrid';
+  grid.innerHTML = shopTab === 'hero' ? heroCardsHtml() :
+                   shopTab === 'medal' ? medalCardsHtml() : mapCardsHtml();
+  const tip = $('#shopTip');
+  if (tip) {
+    tip.textContent =
+      shopTab === 'medal'
+        ? '勋章上限 ' + MEDAL_CAP + ' 枚 · 每名英雄限兑 1 次 · 由成就奖励发放'
+        : shopTab === 'map'
+          ? '地图只影响无尽模式；闯关地图由关卡决定'
+          : '金币来自局中拾取与结算，购买后永久解锁；也可用勋章兑换';
+  }
 
   /* 英雄立绘：和场上小人共用同一份 14×14 像素画 */
   for (const cv of grid.querySelectorAll('.heroArt')) {
@@ -167,6 +212,10 @@ $('#shopGrid').addEventListener('click', (e) => {
   if (card.dataset.hero) {
     const ok = buyHero(card.dataset.hero);
     if (!ok && heroOwned(card.dataset.hero)) toast('已是当前出战英雄');
+    renderShop();
+  } else if (card.dataset.exchange) {
+    const ok = exchangeHero(card.dataset.exchange);
+    if (!ok && heroOwned(card.dataset.exchange)) toast('已是当前出战英雄');
     renderShop();
   } else if (card.dataset.map) {
     applyMap(card.dataset.map);

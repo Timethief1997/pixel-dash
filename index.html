@@ -924,6 +924,9 @@
   .aname{font-size:clamp(11px,1.6vmin,18px);font-weight:600;color:#9a8264;letter-spacing:.06em;line-height:1.2}
   .akind{font-size:clamp(8px,1.05vmin,12px);color:#bf9c73;letter-spacing:.12em;font-family:var(--mono)}
   .adesc{font-size:clamp(9px,1.2vmin,13px);color:#dcc09a;line-height:1.6;min-height:3em}
+  .areward{font-family:var(--mono);font-size:clamp(8px,1.1vmin,12px);color:#ffcf7a;letter-spacing:.05em}
+  .areward::before{content:'◈ ';color:#ffd76a}
+  .acard.locked .areward{color:#9a8264}
   .adate{font-size:clamp(8px,1.1vmin,12px);color:#b08d68;letter-spacing:.06em;font-family:var(--mono);margin-top:auto}
   .acard.locked{opacity:.62;border-style:dashed}
   .acard.locked .adesc{color:#9a8264}
@@ -998,6 +1001,24 @@
     #upgradeScreen .cardwrap{gap:1vmin}
     #upgradeScreen .flipbtn{width:38px;height:38px}
     #upgradeScreen .rr-token{font-size:10px}
+    /* 商店 / 模式：竖屏只有 ~219px 高，头部压成单行，把高度留给卡片滚动 */
+    .shopWrap{gap:.9vmin}
+    .shopHead{flex-wrap:nowrap;gap:1vmin}
+    .shopTitle{font-size:13px;letter-spacing:.1em;text-indent:.1em}
+    .shopCoins{font-size:10px}
+    .shopCoins .cap{font-size:8px;margin-left:.2vmin}
+    .shopWallet{flex-wrap:nowrap;gap:1vmin;justify-content:flex-end}
+    .stabs{gap:.8vmin}
+    .stab{padding:.5vmin 1.6vmin;font-size:10px}
+    .shopFoot{flex-wrap:nowrap;gap:1vmin;font-size:9px}
+    #shopTip,#modeTip{
+      flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .shopCard{padding:1vmin;gap:.4vmin}
+    .scDesc{min-height:0;font-size:9px}
+    .scStat{font-size:8px}
+    .scBtn{font-size:10px;padding:.5vmin}
+    .heroPortrait{height:clamp(54px,9vmin,72px)}
   }
   /* ---- 出战信息 / 商店 ---- */
   .loadout{
@@ -1024,6 +1045,9 @@
   }
   .shopCoins{font-family:var(--mono);font-size:clamp(12px,2vmin,19px);color:#ffd76a;letter-spacing:.04em}
   .shopCoins b{font-size:1.18em}
+  .shopWallet{display:flex;align-items:center;gap:1.4vmin;flex-wrap:wrap;justify-content:flex-end}
+  .shopCoins.medal{color:#ffcf7a}
+  .shopCoins .cap{font-size:.82em;color:#b08d68;margin-left:.45vmin}
   .stabs{display:flex;gap:1vmin}
   .stab{
     appearance:none;font:inherit;font-weight:700;cursor:pointer;
@@ -1295,11 +1319,15 @@
   <div id="shopScreen" class="layer hidden">
     <div class="board shopWrap">
       <div class="shopHead">
-        <div class="shopTitle">商 店 · 英 雄</div>
-        <div class="shopCoins">金币 <b id="shopCoinsVal">0</b></div>
+        <div class="shopTitle">商 店</div>
+        <div class="shopWallet">
+          <div class="shopCoins">金币 <b id="shopCoinsVal">0</b></div>
+          <div class="shopCoins medal">勋章 <b id="shopMedalsVal">0</b><span class="cap">/ <span id="shopMedalsCap">0</span> 上限</span></div>
+        </div>
       </div>
       <div class="stabs">
         <button class="stab on" data-tab="hero">小英雄</button>
+        <button class="stab" data-tab="medal">勋章</button>
         <button class="stab" data-tab="map">地图</button>
       </div>
       <div class="shopGrid" id="shopGrid"></div>

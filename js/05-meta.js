@@ -269,6 +269,34 @@ const ACHS = [
   { id: 'alchemy', name: '炼金术士',   kind: 'pos', desc: '单局入账 200 金币',                    cond: (r) => r.coinsEarned >= 200 },
 ];
 
+/* ============================================================
+   勋章：成就奖励货币（正面 2 枚 / 整活 1 枚），总量有上限
+   ============================================================ */
+const MEDAL_KEY = 'pixelDash.medals.v1';
+const ACH_MEDAL = { pos: 2, neg: 1 };
+function achMedalReward(a) { return ACH_MEDAL[a.kind] || 0; }
+/* 上限 = 所有成就奖励之和；成就是一次性的，所以勋章不可能超过这个数 */
+const MEDAL_CAP = ACHS.reduce((n, a) => n + achMedalReward(a), 0);
+
+function loadMedalSpent() {
+  try { return Math.max(0, Math.floor(Number(localStorage.getItem(MEDAL_KEY) || 0))); } catch (e) { return 0; }
+}
+function medalsEarned() {
+  return ACHS.reduce((n, a) => n + (achUnlocked[a.id] ? achMedalReward(a) : 0), 0);
+}
+/* 已花掉的勋章；夹在 [0, 已获得] 之间，避免旧存档/改数据后越界 */
+let medalSpent = Math.min(loadMedalSpent(), medalsEarned());
+function medalBalance() {
+  return Math.max(0, Math.min(MEDAL_CAP, medalsEarned()) - medalSpent);
+}
+function spendMedals(n) {
+  n = Math.max(0, Math.floor(Number(n) || 0));
+  if (n <= 0 || medalBalance() < n) return false;
+  medalSpent = Math.min(MEDAL_CAP, medalSpent + n);
+  try { localStorage.setItem(MEDAL_KEY, String(medalSpent)); } catch (e) {}
+  return true;
+}
+
 function resetAchRun() {
   achRun = {
     kills: 0, elites: 0, bosses: 0, dashes: 0, hits: 0, orbs: 0,
@@ -291,7 +319,8 @@ function unlockAch(id, silent) {
   achUnlocked[id] = Date.now();
   saveAchStore();
   if (!silent) {
-    toast('成就解锁 · ' + a.name, a.kind === 'neg');
+    const gain = achMedalReward(a);
+    toast('成就解锁 · ' + a.name + '（+' + gain + ' 勋章）', a.kind === 'neg');
     blip(920, 0.12, 'triangle', 0.07, 90);
     setTimeout(() => blip(1240, 0.16, 'triangle', 0.06, 80), 120);
   }
@@ -332,6 +361,7 @@ function renderAch() {
         '<div><div class="aname">' + (un ? a.name : '？？？') + '</div>' +
         '<div class="akind">' + (a.kind === 'pos' ? '正面 · 荣耀' : '整活 · 黑历史') + '</div></div></div>' +
       '<div class="adesc">' + a.desc + '</div>' +
+      '<div class="areward">奖励 +' + achMedalReward(a) + ' 勋章</div>' +
       '<div class="adate">' + (un ? '已解锁 · ' + achDate(ts) : '未解锁') + '</div>' +
     '</div>';
   }).join('');
@@ -341,7 +371,8 @@ function renderAch() {
   const neg = ACHS.filter((a) => a.kind === 'neg' && achUnlocked[a.id]).length;
   $('#achNote').textContent = '已解锁 ' + n + ' / ' + total +
     '　·　正面 ' + pos + ' / ' + ACHS.filter((a) => a.kind === 'pos').length +
-    '　·　整活 ' + neg + ' / ' + ACHS.filter((a) => a.kind === 'neg').length;
+    '　·　整活 ' + neg + ' / ' + ACHS.filter((a) => a.kind === 'neg').length +
+    '　·　勋章 ' + medalBalance() + ' / ' + MEDAL_CAP + ' 可用（已得 ' + medalsEarned() + '）';
 }
 
 function openAch() {
