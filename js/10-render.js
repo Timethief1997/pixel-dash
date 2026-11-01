@@ -219,6 +219,21 @@ function drawEnemy(e) {
 
   paintMonster(ctx, left, top, s, { color: bodyCol, edge: edgeCol, type: e.type, gen, flash: e.flash > 0 });
 
+  // 霜核：一圈淡蓝寒气，让冰系小怪在人群里也能一眼认出
+  if (e.type === 'frost') {
+    ctx.globalAlpha = 0.20 + 0.10 * Math.sin(time * 4 + e.id);
+    ctx.fillStyle = '#8fd8ff';
+    ctx.beginPath();
+    ctx.arc(x, y, e.r + 6, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = '#dff4ff';
+    ctx.beginPath();
+    ctx.arc(x, y, e.r + 3, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
   // 第五代熔核过载：血量低于 35% 时外圈亮起旋转的橙金火星
   if (isBoss && gen >= 5 && e.hp <= e.maxHp * 0.35) {
     const rr = e.r + 5;
@@ -696,6 +711,37 @@ function drawPlayer() {
   ctx.restore();
 
   ctx.globalAlpha = 1;
+
+  // 冰冻：整个人被封进冰块，白边 + 冰晶高光 + 四角冰刺
+  if (p.freezeT > 0) {
+    ctx.globalAlpha = 0.55 + 0.18 * Math.sin(time * 14);
+    ctx.fillStyle = '#9fd8f5';
+    ctx.fillRect(x - 7, y - 8, 14, 17);
+    ctx.globalAlpha = 0.95;
+    ctx.strokeStyle = '#eaf9ff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 7.5, y - 8.5, 15, 18);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x - 4, y - 6, 1, 8);
+    ctx.fillRect(x + 3, y - 2, 1, 6);
+    ctx.fillStyle = '#dff4ff';
+    ctx.fillRect(x - 10, y - 1, 3, 2);
+    ctx.fillRect(x + 7, y + 3, 3, 2);
+    ctx.fillRect(x - 1, y - 12, 2, 3);
+    ctx.globalAlpha = 1;
+  }
+
+  // 缓速：脚下一圈淡蓝冷雾，与冰冻区分开
+  if (p.slowT > 0 && p.freezeT <= 0) {
+    ctx.globalAlpha = 0.30;
+    ctx.strokeStyle = '#8fd8ff';
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.arc(x, y + 2, 12, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
 
   // 充能指示
   const total = Math.min(p.stats.dashCharges, 5);

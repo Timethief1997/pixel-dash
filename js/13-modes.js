@@ -7,6 +7,7 @@ let modeTab = 'tutorial';
 function levelGoalText(lv) {
   if (lv.goal === 'survive') return '撑满 ' + lv.time + ' 秒';
   if (lv.goal === 'kills') return lv.time + ' 秒内击杀 ' + lv.kills + ' 只';
+  if (lv.goal === 'score') return lv.time + ' 秒内打满 ' + lv.scoreGoal + ' 分';
   return lv.time + ' 秒内击败 ' + lv.bosses + ' 只 BOSS';
 }
 function mapMods(m) {

@@ -44,8 +44,29 @@ function pushRecord(rec) {
   storeRecords(top);
   return top;
 }
-function bestRecord() {
-  const list = loadRecords();
+/* 闯关按「最远关卡 → 是否通过 → 分数」排序；无尽按分数排序 */
+function sortModeRecords(list, mode) {
+  if (mode === 'campaign') {
+    list.sort((a, b) => (b.stage || 0) - (a.stage || 0) ||
+      (b.won ? 1 : 0) - (a.won ? 1 : 0) || b.score - a.score);
+  } else {
+    list.sort((a, b) => b.score - a.score || b.time - a.time);
+  }
+  return list;
+}
+function modeRecords(mode) {
+  const all = loadRecords();
+  if (!mode) return sortModeRecords(all, mode);
+  /* 早期版本没有 mode 字段的旧记录归到「无尽」榜，避免直接消失 */
+  const list = all.filter((r) => r.mode === mode || (!r.mode && mode === 'endless'));
+  return sortModeRecords(list, mode);
+}
+function bestRecord(mode) {
+  if (!mode) {
+    const list = loadRecords();
+    return list.length ? list[0] : null;
+  }
+  const list = modeRecords(mode);
   return list.length ? list[0] : null;
 }
 
@@ -71,41 +92,73 @@ function fmtDate(ts) {
   const d = new Date(ts), p = (n) => String(n).padStart(2, '0');
   return p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
-function recordModeName(r) {
-  const m = r && r.mode && MODES[r.mode];
-  if (!m) return '旧版记录';
-  if (r.stage) return m.name + ' · 第' + r.stage + '关';
-  if (r.mode === 'endless' && r.wave) return m.name + ' · 第' + r.wave + '波';
-  return m.name;
-}
 function recordModeCol(r) {
   const m = r && r.mode && MODES[r.mode];
   return m ? m.col : '#a9bdd4';
 }
 function refreshBestLine() {
-  const b = bestRecord();
-  $('#bestLine').innerHTML = b
-    ? '最佳 <b>' + b.score + '</b> 分（' + recordModeName(b) + '）　·　存活 ' + fmt(b.time) + '　·　击杀 ' + b.kills
-    : '暂无记录 —— 第一局就是你的最高分';
+  const prog = Math.min(Math.max(campaignProgress() - 1, 0), LEVELS.length);
+  const e = bestRecord('endless');
+  $('#bestLine').innerHTML =
+    '闯关进度 <b>' + prog + '</b> / ' + LEVELS.length + ' 关' +
+    '　·　' + (e ? '无尽最佳 <b>' + e.score + '</b> 分' : '无尽暂无记录');
 }
+
+/* 历史记录：闯关看最远关卡，无尽看得分，两套榜各自排序 */
+let histTab = 'campaign';
 function renderHistory() {
-  const list = loadRecords();
-  const box = $('#histList');
+  const box = $('#histList'), cap = $('#histCap');
+  if (!box) return;
+  for (const b of document.querySelectorAll('.htab')) {
+    b.classList.toggle('on', b.dataset.htab === histTab);
+  }
+  box.className = 'hlist ' + (histTab === 'campaign' ? 'camp' : 'endless');
+  const list = modeRecords(histTab).slice(0, MAX_REC);
+
+  if (histTab === 'campaign') {
+    const done = campaignProgress();
+    const cleared = Math.min(Math.max(done - 1, 0), LEVELS.length);
+    const next = done <= LEVELS.length ? '下一关：第 ' + done + ' 关 · ' + LEVELS[done - 1].name : '全部关卡已通过';
+    if (cap) cap.innerHTML = '已通关 <b>' + cleared + '</b> / ' + LEVELS.length + ' 关　·　' + next;
+    if (!list.length) {
+      box.innerHTML = '<div class="hempty">还没有闯关记录。<br />从第 1 关开始，最远到过哪一关都会记在这里。</div>';
+      return;
+    }
+    box.innerHTML =
+      '<div class="hhead"><div>#</div><div>关卡</div><div>结果</div><div>得分</div><div>存活</div><div>击杀</div><div>时间</div></div>' +
+      list.map((r, i) =>
+      '<div class="hrow' + (i < 3 ? ' top' + (i + 1) : '') + '">' +
+        '<div class="rk">' + (i + 1) + '</div>' +
+        '<div class="dfg" style="color:' + recordModeCol(r) + '">' +
+          (r.stage ? '第 ' + r.stage + ' 关 · ' + (r.stageName || '') : '闯关') + '</div>' +
+        '<div style="color:' + (r.won ? '#a8f5c3' : '#ff9b86') + '">' + (r.won ? '✓ 通过' : '✗ 失败') + '</div>' +
+        '<div class="sc">' + r.score + '</div>' +
+        '<div class="tm">' + fmt(r.time) + '</div>' +
+        '<div>' + r.kills + ' 杀</div>' +
+        '<div class="dt">' + fmtDate(r.date) + '</div>' +
+      '</div>').join('');
+    return;
+  }
+
+  const best = bestRecord('endless');
+  if (cap) cap.innerHTML = best
+    ? '无尽最高分 <b>' + best.score + '</b>　·　共 ' + modeRecords('endless').length + ' 局'
+    : '还没有无尽记录 —— 固定一张地图，一直打到倒下为止';
   if (!list.length) {
-    box.innerHTML = '<div class="hempty">还没有记录。<br />玩一局，分数就会留在这里。</div>';
+    box.innerHTML = '<div class="hempty">还没有无尽记录。<br />选一张地图开一局，分数就会留在这里。</div>';
     return;
   }
   box.innerHTML =
-    '<div class="hhead"><div>#</div><div>分数</div><div>存活</div><div>击杀</div><div>等级</div><div>模式</div><div>时间</div></div>' +
+    '<div class="hhead"><div>#</div><div>分数</div><div>波次</div><div>存活</div><div>击杀</div><div>等级</div><div>时间</div></div>' +
     list.map((r, i) =>
     '<div class="hrow' + (i < 3 ? ' top' + (i + 1) : '') + '">' +
       '<div class="rk">' + (i + 1) + '</div>' +
       '<div class="sc">' + r.score + '</div>' +
+      '<div>' + (r.wave ? '第 ' + r.wave + ' 波' : '—') + '</div>' +
       '<div class="tm">' + fmt(r.time) + '</div>' +
       '<div>' + r.kills + ' 杀</div>' +
       '<div>LV.' + r.level + '</div>' +
-      '<div class="dfg" style="color:' + recordModeCol(r) + '">' + recordModeName(r) + '</div>' +
-      '<div class="dt">' + (r.won ? '✓ ' : '') + fmtDate(r.date) + '</div>' +
+      '<div class="dt">' + fmtDate(r.date) + '</div>' +
     '</div>').join('');
 }
 function openHistory() {
@@ -117,6 +170,14 @@ function closeHistory() {
   $('#historyScreen').classList.add('hidden');
   refreshBestLine();
   if (state === 'menu') layers.title.classList.remove('hidden');
+}
+if ($('#histTabs')) {
+  $('#histTabs').addEventListener('click', (e) => {
+    const b = e.target && e.target.closest ? e.target.closest('.htab') : null;
+    if (!b || !b.dataset.htab || b.dataset.htab === histTab) return;
+    histTab = b.dataset.htab;
+    renderHistory();
+  });
 }
 
 /* ============================================================
@@ -412,10 +473,15 @@ function winJingle() {
 function endGame(win, quit) {
   if (state !== 'playing') return;
   state = win ? 'won' : 'dead';
+  stopBgm();
   const bank = bankCoins();
   const score = calcScore();
-  const prev = bestRecord();
-  const newBest = !prev || score > prev.score;
+  const prev = bestRecord(modeKey);
+  /* 闯关看「首次通过这一关」，无尽看同模式最高分 */
+  const firstClear = !!(campaign && win && curLevel && campaignProgress() <= curLevel.id);
+  const newBest = modeKey === 'tutorial' ? false
+    : campaign ? firstClear
+    : (!prev || score > prev.score);
   if (modeKey !== 'tutorial') {
     pushRecord({
       score, time: Math.round(time), kills,
@@ -425,7 +491,7 @@ function endGame(win, quit) {
       wave: endless ? wave : 0,
     });
   }
-  const best = bestRecord();
+  const best = bestRecord(modeKey);
   /* 结算时判定「死亡/通关」类成就，解锁结果直接写进结算面板 */
   const newAch = checkAch(true, {
     ending: true, dead: !win && !quit, win, time, quit,
@@ -439,7 +505,7 @@ function endGame(win, quit) {
   lastRunInfo = {
     win: !!win, quit: !!quit, score, time: Math.round(time), kills,
     level: player.level, coins: bank.run, coinsTotal: bank.total,
-    newBest, best: best.score, ach: newAch,
+    newBest, best: best ? best.score : score, ach: newAch,
     mode: modeKey, modeName: mc.name, modeCol: mc.col,
     stage: campaign && curLevel ? curLevel.id : 0,
     stageName: campaign && curLevel ? curLevel.name : '',
@@ -466,13 +532,16 @@ function endGame(win, quit) {
     cell('击杀', kills, 'hot') +
     cell('等级', 'Lv.' + player.level, 'gold') +
     cell(ico('coin') + '金币', '+' + bank.run + (bank.total ? ' · 共 ' + bank.total : ''), 'coin');
+  const bestTip = modeKey === 'tutorial' ? '操作就是全部武器'
+    : campaign ? '最远 第 ' + Math.min(Math.max(campaignProgress() - 1, 0), LEVELS.length) + ' 关'
+    : '无尽最佳 ' + (best ? best.score : score) + ' 分';
   $('#endFlags').innerHTML =
-    (newBest ? '<span class="rflag">★ 新纪录</span>' : '') +
+    (newBest ? '<span class="rflag">★ ' + (campaign ? '新关卡' : '新纪录') + '</span>' : '') +
     (newAch.length ? '<span class="rflag ach">✦ 新成就 · ' + newAch.join(' · ') + '</span>' : '') +
     '<span class="rmeta">模式 <span class="rdiff" style="color:' + mc.col + ';border-color:' + mc.col +
       '99;background:' + mc.col + '22">' + mc.name +
       (campaign && curLevel ? ' · 第' + curLevel.id + '关' : endless ? ' · 第' + wave + '波' : '') +
-      '</span>　·　历史最佳 ' + best.score + ' 分</span>';
+      '</span>　·　' + bestTip + '</span>';
   // 结算与 HUD 显示同一个最终分数，避免玩家对照时看到尾数差
   hudScoreVal = score;
   scoreValEl.textContent = score;

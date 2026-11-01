@@ -68,12 +68,14 @@ const LEVELS = [
   { id: 1, name: '苔原 · 起步', map: 'plain', col: '#7dffb0', tag: '生存',
     goal: 'survive', time: 60, desc: '在苔原撑满 60 秒，熟悉移动和冲刺穿怪。' },
   { id: 2, name: '雪原 · 冰封', map: 'snow', col: '#8fd8ff', tag: '击杀',
-    goal: 'kills', kills: 60, time: 90, desc: '冰面打滑、岩石挡路：90 秒内击杀 60 只敌人。' },
+    goal: 'kills', kills: 60, time: 90, types: { frost: 0.22 },
+    desc: '冰面打滑、岩石挡路：90 秒内击杀 60 只敌人。偶尔会钻出霜核，先尝一口冰锥。' },
   { id: 3, name: '熔岩 · 陨落', map: 'lava', col: '#ff8a4a', tag: '生存',
     goal: 'survive', time: 70, meteorMul: 1.5, spawnMul: 1.35, maxAdds: 2,
     desc: '陨石不断坠落，躲开熔岩撑满 70 秒。' },
   { id: 4, name: '雪原 · 兽潮', map: 'snow', col: '#8fd8ff', tag: 'BOSS',
-    goal: 'boss', bosses: 1, bossAt: 20, time: 120, desc: '20 秒后 BOSS 登场，击败它才能过关。' },
+    goal: 'boss', bosses: 1, bossAt: 20, time: 120, types: { frost: 0.34 },
+    desc: '20 秒后 BOSS 登场，击败它才能过关。冰原上的霜核会成对出现。' },
   { id: 5, name: '熔岩 · 终焉', map: 'lava', col: '#ff8a4a', tag: 'BOSS',
     goal: 'boss', bosses: 2, bossAt: 15, bossGap: 15, time: 160,
     spawnMul: 1.9, maxAdds: 2,
@@ -100,6 +102,10 @@ const LEVELS = [
   { id: 12, name: '雨夜 · 雷暴', map: 'rain', col: '#8fb6ff', tag: 'BOSS',
     goal: 'boss', bosses: 2, bossAt: 15, bossGap: 40, time: 170, spawnMul: 1.1,
     desc: '雷暴夜的收官战：双脚打滑，两只 BOSS 先后踏水而来。' },
+  { id: 13, name: '雪原 · 极寒', map: 'snow', col: '#a8e6ff', tag: '积分',
+    goal: 'score', scoreGoal: 7000, time: 150, spawnMul: 0.78, maxAdds: 3, chill: true,
+    types: { chaser: 1, fast: 0.7, frost: 1.25, tank: 0.25 },
+    desc: '小无尽模式：不限击杀数，只看分数。整片雪原都在结霜，霜核成群，冰锥沾身直接把人冻在原地；150 秒内打满 7000 分才算通关。' },
 ];
 function campaignProgress() {
   try {

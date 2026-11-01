@@ -12,6 +12,15 @@ function pickType() {
   if (time > 55) pool.push(['tank', 0.35]);
   if (time > 70) pool.push(['frost', 0.3]);
   if (time > 95) pool.push(['bomber', 0.3]);
+  /* 关卡可指定某类怪的权重（冰原关让霜核提前、成规模出现） */
+  const lv = campaign ? curLevel : null;
+  if (lv && lv.types) {
+    for (const k in lv.types) {
+      const hit = pool.find((p) => p[0] === k);
+      if (hit) hit[1] = Math.max(hit[1], lv.types[k]);
+      else pool.push([k, lv.types[k]]);
+    }
+  }
   let total = 0;
   for (const p of pool) total += p[1];
   let r = rand(0, total);
@@ -128,13 +137,14 @@ function updateSpawn(dt) {
   }
 }
 
-/* 闯关目标判定：击杀数 / 生存时间 / BOSS 数，超时算失败 */
+/* 闯关目标判定：击杀数 / 生存时间 / BOSS 数 / 积分，超时算失败 */
 function checkCampaign() {
   if (!campaign || !curLevel) return;
   const lv = curLevel;
   if (state !== 'playing') return;
   if (lv.goal === 'kills' && kills >= lv.kills) { endGame(true); return; }
   if (lv.goal === 'boss' && bossKills >= lv.bosses) { endGame(true); return; }
+  if (lv.goal === 'score' && calcScore() >= lv.scoreGoal) { endGame(true); return; }
   if (time >= campaignDeadline) {
     if (lv.goal === 'survive') endGame(true);
     else endGame(false);

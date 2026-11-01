@@ -105,18 +105,29 @@ function ensureBgmSrc() {
     bgmEl.load();
   } catch (e) {}
 }
+/* 只有真正进入一局战斗时才播 BGM，菜单与各界面保持安静 */
+function inRun() {
+  return state === 'playing' || state === 'upgrade' || !!paused;
+}
 function playBgm() {
   if (!bgmEl || !bgmOn) return;
   ensureBgmSrc();
   const p = bgmEl.play();
   if (p && p.catch) p.catch(() => {});
 }
+function startRunBgm() {
+  if (bgmOn) playBgm();
+}
+function stopBgm() {
+  if (bgmEl && !bgmEl.paused) bgmEl.pause();
+}
 function setBgm(v) {
   bgmOn = !!v;
   try { localStorage.setItem(BGM_KEY, bgmOn ? '1' : '0'); } catch (e) {}
   syncBgm();
-  if (bgmOn) playBgm();
-  else if (bgmEl) bgmEl.pause();
+  /* 在菜单里打开开关不会立刻响，等真正开局再播 */
+  if (bgmOn && inRun()) playBgm();
+  else if (!bgmOn) stopBgm();
 }
 function toggleSetPanel(force) {
   const open = force === undefined ? setPanel.classList.contains('hidden') : !!force;
@@ -140,13 +151,23 @@ document.addEventListener('pointerdown', (e) => {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !setPanel.classList.contains('hidden')) toggleSetPanel(false);
 });
-/* 浏览器要求用户手势后才能出声：任何一次交互都尝试起播 BGM */
-['pointerdown', 'touchstart', 'keydown'].forEach((t) =>
-  document.addEventListener(t, playBgm, { passive: true }));
+/* 浏览器要求用户手势后才能出声：不做全局起播，开局时由 startGame 调用 startRunBgm() */
 document.addEventListener('visibilitychange', () => {
   if (!bgmEl) return;
   if (document.hidden) bgmEl.pause();
-  else playBgm();
+  else if (inRun()) playBgm();
+});
+/* 所有界面按键统一「叩木头」的触感反馈（键盘触发的 click 用 detail=0 兜底） */
+const KNOCK_SEL = 'button,.rbtn,.btn,.shopCard,.card,.stab,.mtab,.flipbtn,.hbtn';
+document.addEventListener('pointerdown', (e) => {
+  const t = e.target;
+  const hit = t && t.closest ? t.closest(KNOCK_SEL) : null;
+  if (hit) woodKnock();
+}, { passive: true, capture: true });
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  const hit = t && t.closest ? t.closest(KNOCK_SEL) : null;
+  if (hit && e.detail === 0) woodKnock();
 });
 
 fsBtn.addEventListener('click', () => {
@@ -219,7 +240,8 @@ function hudSync() {
   if (p.level !== hudLvVal) { hudLvVal = p.level; lvBadgeEl.textContent = 'Lv.' + p.level; }
   /* 模式标签：教程 / 第 N 关 / 第 N 波 */
   const mc = MODES[modeKey] || MODES.endless;
-  const stageTxt = campaign && curLevel ? '第 ' + curLevel.id + ' 关'
+  const stageTxt = campaign && curLevel
+    ? '第 ' + curLevel.id + ' 关' + (curLevel.goal === 'score' ? ' · 目标 ' + curLevel.scoreGoal + ' 分' : '')
     : modeKey === 'endless' ? '第 ' + wave + ' 波' : mc.name;
   const modeSig = modeKey + '|' + (curLevel ? curLevel.id : 0) + '|' + wave;
   if (diffTagEl.dataset.sig !== modeSig) {

@@ -51,7 +51,11 @@ function tryDash() {
 
   p.dashCharges -= 1;
   if (achRun) achRun.dashes += 1;
-  p.freezeT = 0;   // 冲刺可以震碎冰冻
+  if (p.freezeT > 0) {   // 冲刺可以震碎冰冻
+    burst(p.x, p.y, '#bfe8ff', 14, 60);
+    blip(980, 0.09, 'triangle', 0.05, -260);
+  }
+  p.freezeT = 0;
   p.returnBack = false;
   p.returnT = 0;
   p.dashT = p.stats.dashTime;
@@ -94,6 +98,16 @@ function applyFreeze(dur) {
   if (!p) return;
   if (p.freezeT <= 0 && achRun) achRun.freezes += 1;
   p.freezeT = Math.max(p.freezeT, dur);
+}
+/* 冰冻表现：碎冰、音效、飘字，让「被冻住」一眼就能看见 */
+function freezePlayer(dur) {
+  applyFreeze(dur);
+  burst(player.x, player.y, '#bfe8ff', 12, 58);
+  burst(player.x, player.y, '#eaf9ff', 6, 30);
+  effects.push({ x: player.x, y: player.y, r: 16, life: 0.35, max: 0.35, color: '#bfe8ff' });
+  texts.push({ x: player.x, y: player.y - 16, vy: -14, life: 0.9, text: '冰冻!', color: '#eaf9ff' });
+  blip(1180, 0.14, 'triangle', 0.055, -520);
+  shake = Math.max(shake, 3);
 }
 
 /* ============================================================
@@ -628,7 +642,8 @@ function updateEnemies(dt) {
       else { e.x += -uy * e.speed * dt * 0.5 * slow * fz; e.y += ux * e.speed * dt * 0.5 * slow * fz; }
       e.fireT -= dt;
       if (e.fireT <= 0 && d < 175) {
-        e.fireT = 2.4;
+        /* 极寒关的霜核出手更快，冰锥更密 */
+        e.fireT = campaign && curLevel && curLevel.chill ? 1.75 : 2.4;
         ebullets.push({ x: e.x, y: e.y, vx: ux * 74, vy: uy * 74, r: 3, life: 4.5, dmg: 1, dead: false, frost: true });
         blip(760, 0.05, 'triangle', 0.025, 120);
       }
@@ -804,8 +819,12 @@ function updateEBullets(dt) {
       b.life = 0;
       if (b.poison) applyPoison(2.6);
       if (b.frost) {
-        if (player.slowT > 0) { applyFreeze(0.6); texts.push({ x: player.x, y: player.y - 14, vy: -16, life: 0.6, text: '冰冻!', color: '#dff4ff' }); }
-        else applySlow(2, 0.5);
+        /* 极寒关：冰锥一沾身就直接冻住；其他关卡先减速，第二发才冻。
+           冻结时长必须超过受击无敌（1.2 秒），否则玩家根本感觉不到「被冻住」 */
+        const chill = !!(campaign && curLevel && curLevel.chill);
+        if (chill) freezePlayer(2.0);
+        else if (player.slowT > 0) freezePlayer(1.8);
+        else applySlow(2.2, 0.5);
       }
       hitPlayer(b);
       if (state !== 'playing') return;
