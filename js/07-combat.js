@@ -978,9 +978,11 @@ function updateMapTerrain(dt) {
   const p = player;
 
   if (map.meteor) {
+    /* 关卡可用 meteorMul 拉长陨石间隔（第三关降低随机致死压力，不影响无尽） */
+    const meteorInt = map.meteor * (campaign && curLevel && curLevel.meteorMul ? curLevel.meteorMul : 1);
     meteorT -= dt;
     if (meteorT <= 0) {
-      meteorT = map.meteor + rand(-1.5, 1.5);
+      meteorT = meteorInt + rand(-1.5, 1.5);
       meteors.push({ x: rand(16, W - 16), y: rand(16, H - 16), warn: 1.1, life: 2.6, max: 2.6, explode: false });
     }
     for (const m of meteors) {
