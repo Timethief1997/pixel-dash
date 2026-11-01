@@ -105,6 +105,9 @@ function chooseIndex(i) {
   pendingLevels -= 1;
   blip(520, 0.08, 'triangle', 0.05, 300);
   if (pendingLevels > 0) {
+    // 还有待选的升级：先回 playing，openUpgrade 只接受从 playing 进入，
+    // 否则会直接 return，界面已隐藏但 state 停在 upgrade，表现为卡死
+    state = 'playing';
     openUpgrade();
   } else {
     state = 'playing';
