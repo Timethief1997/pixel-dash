@@ -28,6 +28,7 @@ let tutorial = null;  // 新手教程状态
 let terrain = { rocks: [], ice: [] };   // 地图静态地形
 let meteors = [];    // 熔岩图的陨石
 let meteorT = 0;
+let shockT = 0;      // 霓虹图的电栅计时
 
 const keys = {};
 
@@ -71,6 +72,14 @@ const LEVELS = [
     goal: 'boss', bosses: 1, bossAt: 20, time: 120, desc: '20 秒后 BOSS 登场，击败它才能过关。' },
   { id: 5, name: '熔岩 · 终焉', map: 'lava', col: '#ff8a4a', tag: 'BOSS',
     goal: 'boss', bosses: 2, bossAt: 15, bossGap: 55, time: 160, desc: '熔岩上的终局：连续击败 2 只 BOSS。' },
+  { id: 6, name: '荒漠 · 沙暴', map: 'desert', col: '#f2c46a', tag: '生存',
+    goal: 'survive', time: 70, desc: '流沙拖住脚步，沙暴糊住视线：在荒漠撑满 70 秒。' },
+  { id: 7, name: '霓虹 · 夜巡', map: 'neon', col: '#ff6bd6', tag: '击杀',
+    goal: 'kills', kills: 90, time: 95, desc: '霓虹街区布满电栅，95 秒内击杀 90 只敌人。' },
+  { id: 8, name: '荒漠 · 王陵', map: 'desert', col: '#f2c46a', tag: 'BOSS',
+    goal: 'boss', bosses: 1, bossAt: 18, time: 130, desc: '18 秒后 BOSS 从王陵里爬出，击败它才能过关。' },
+  { id: 9, name: '霓虹 · 终章', map: 'neon', col: '#ff6bd6', tag: 'BOSS',
+    goal: 'boss', bosses: 2, bossAt: 15, bossGap: 50, time: 170, desc: '霓虹最深处的终章：连续击败 2 只 BOSS。' },
 ];
 function campaignProgress() {
   try {
@@ -109,6 +118,15 @@ const HEROES = [
   { id: 'diaper', name: '尿不湿', price: 300, col: '#ffd76a', tag: '幸运',
     hp: 10, speed: -4,  dashDamage: 0,  dashRadius: 0, dashCharges: 0, rerolls: 2, skill: 'lucky',
     desc: '又厚又软：血多、每局多 2 次换牌机会，冲刺偏弱但很能苟。' },
+  { id: 'ninja',  name: '忍者',   price: 900, col: '#7ef0ff', tag: '潜行',
+    hp: 5,  speed: 12,  dashDamage: 1,  dashRadius: -2, dashCharges: 1, rerolls: 0, skill: 'blink',
+    desc: '跑得最快，多一次冲刺；冲刺能直接穿过岩石，落地后还多 0.25 秒无敌。血薄，全靠位移躲。' },
+  { id: 'smith',  name: '铁匠',   price: 750, col: '#ff9a3c', tag: '熔锻',
+    hp: 9,  speed: -6,  dashDamage: 2,  dashRadius: 1,  dashCharges: 0, rerolls: 0, skill: 'ember',
+    desc: '冲刺沿途自动留下灼烧余烬（相当于自带一级火焰尾迹），撞得狠；跑得慢，要靠预判冲刺。' },
+  { id: 'firefly', name: '萤火',  price: 650, col: '#9ef58a', tag: '灵动',
+    hp: 7,  speed: 6,   dashDamage: -1, dashRadius: 1,  dashCharges: 0, rerolls: 1, skill: 'chain',
+    desc: '冲刺击杀敌人会立刻返还一部分充能，越打越能连着冲；血少、单次伤害略低。' },
 ];
 
 let heroKey = 'scout';
@@ -170,6 +188,12 @@ const MAPS = {
   lava:  { id: 'lava',  name: '熔岩', tag: '陨石', col: '#ff8a4a',
     desc: '陨石持续坠落，踩进熔岩会烫伤；敌人更快，但你的速度不受影响。',
     playerSpd: 1, enemySpd: 1.05, rocks: 3, ice: 0, meteor: 8, snow: 0 },
+  desert: { id: 'desert', name: '荒漠', tag: '流沙', col: '#f2c46a',
+    desc: '沙暴卷着热浪扫过，流沙会让脚步变慢；碎石挡路，适合练长距离冲刺。',
+    playerSpd: 0.96, enemySpd: 1.0, rocks: 4, ice: 6, meteor: 0, snow: 0 },
+  neon:  { id: 'neon',  name: '霓虹', tag: '电栅', col: '#ff6bd6',
+    desc: '霓虹地砖下埋着电栅，周期性通电；敌人更快，你也要跑得更快。',
+    playerSpd: 1.04, enemySpd: 1.08, rocks: 2, ice: 0, meteor: 0, snow: 0, shock: 8 },
 };
 let mapKey = 'plain';
 try {
@@ -358,7 +382,7 @@ function makePlayer() {
     hitIds: new Set(),
     dashKillCount: 0,
     shield: 0, shieldT: 0,
-    autoT: 0, trailTick: 0,
+    autoT: 0, trailTick: 0, emberTick: 0,
     healCd: 0, healBlock: 0,
     poisonT: 0, poisonTick: 0,
     slowT: 0, slowMul: 1,

@@ -33,6 +33,12 @@ VIGNETTE_HARD.addColorStop(1, 'rgba(120,10,32,.62)');
 const VIGNETTE_SNOW = ctx.createRadialGradient(W / 2, H / 2, 58, W / 2, H / 2, 198);
 VIGNETTE_SNOW.addColorStop(0, 'rgba(28,54,88,0)');
 VIGNETTE_SNOW.addColorStop(1, 'rgba(28,54,88,.34)');
+const VIGNETTE_DESERT = ctx.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, 198);
+VIGNETTE_DESERT.addColorStop(0, 'rgba(104,62,18,0)');
+VIGNETTE_DESERT.addColorStop(1, 'rgba(104,62,18,.34)');
+const VIGNETTE_NEON = ctx.createRadialGradient(W / 2, H / 2, 56, W / 2, H / 2, 198);
+VIGNETTE_NEON.addColorStop(0, 'rgba(52,4,74,0)');
+VIGNETTE_NEON.addColorStop(1, 'rgba(52,4,74,.42)');
 const PGLOW = ctx.createRadialGradient(0, 0, 1, 0, 0, 24);
 PGLOW.addColorStop(0, 'rgba(120,215,255,.16)');
 PGLOW.addColorStop(1, 'rgba(120,215,255,0)');
@@ -93,6 +99,36 @@ for (let i = 0; i < 26; i++) {
   EMBERS.push({ x: drnd() * W, y: drnd() * H, sp: 5 + drnd() * 15, ph: drnd() * TAU, sz: drnd() < 0.5 ? 1 : 2 });
 }
 
+/* ---- 荒漠：横向掠过的沙粒（运行时动态层） ---- */
+const SAND_STREAK = [];
+{
+  const r = lcg(445566);
+  for (let i = 0; i < 40; i++) {
+    SAND_STREAK.push({
+      x: r() * W, y: r() * H, sp: 14 + r() * 46,
+      len: 2 + Math.floor(r() * 4), ph: r() * TAU,
+      al: 0.18 + r() * 0.34,
+    });
+  }
+}
+
+/* ---- 霓虹：固定的地砖灯带 + 运行时扫光 ---- */
+const NEON_LINES = [
+  { x: 0,   y: 22,  len: W, axis: 0, col: '#ff6bd6' },
+  { x: 0,   y: 78,  len: W, axis: 0, col: '#5ce1ff' },
+  { x: 0,   y: 136, len: W, axis: 0, col: '#a86bff' },
+  { x: 36,  y: 0,   len: H, axis: 1, col: '#5ce1ff' },
+  { x: 186, y: 0,   len: H, axis: 1, col: '#ff6bd6' },
+  { x: 288, y: 0,   len: H, axis: 1, col: '#a86bff' },
+];
+const NEON_GLINT = [];
+{
+  const r = lcg(9182734);
+  for (let i = 0; i < 26; i++) {
+    NEON_GLINT.push({ x: r() * W, y: r() * H, ph: r() * TAU, sp: 0.6 + r() * 1.4, sz: r() < 0.35 ? 2 : 1 });
+  }
+}
+
 /* ---- 熔岩裂隙：预先规划的脉络（暗槽烘焙，亮芯运行时呼吸） ---- */
 const FISSURE_PATHS = [
   [[-2, 172], [28, 158], [56, 148], [84, 142], [112, 134]],
@@ -146,6 +182,8 @@ function getScene(key) {
   else if (key === 'hard') bakeHard(g);
   else if (key === 'snow') bakeSnow(g);
   else if (key === 'lava') bakeLava(g);
+  else if (key === 'desert') bakeDesert(g);
+  else if (key === 'neon') bakeNeon(g);
   else bakeNormal(g);
   SCENE[key] = c;
   return c;
@@ -897,6 +935,175 @@ function bakeLava(g) {
   g.fillRect(2, 0, 1, H); g.fillRect(W - 3, 0, 1, H);
 }
 
+/* ---------- 荒漠：暖砂 + 沙丘 + 风蚀碎石（烘焙底图） ---------- */
+function bakeDesert(g) {
+  const r = lcg(661199);
+
+  // 砂面底色：上亮下暗，像被午后太阳晒热的地面
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#efcb88');
+  bg.addColorStop(0.34, '#e2b26c');
+  bg.addColorStop(0.68, '#c9904e');
+  bg.addColorStop(1, '#a8743f');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+
+  // 左上烈日
+  const sun = g.createRadialGradient(58, -16, 6, 92, 28, 210);
+  sun.addColorStop(0, 'rgba(255,248,208,.36)');
+  sun.addColorStop(0.42, 'rgba(255,230,164,.13)');
+  sun.addColorStop(1, 'rgba(255,216,140,0)');
+  g.fillStyle = sun;
+  g.fillRect(0, 0, W, H);
+
+  // 沙丘：受光面亮、背光面冷，靠扁椭圆叠出起伏
+  for (let i = 0; i < 30; i++) {
+    const cx = r() * W, cy = r() * H, rx = 16 + r() * 30, ry = 4 + r() * 9;
+    g.save();
+    g.translate(cx, cy);
+    g.scale(1, ry / rx);
+    const dg = g.createRadialGradient(rx * 0.25, -ry * 0.2, 2, 0, 0, rx);
+    dg.addColorStop(0, 'rgba(255,244,196,.20)');
+    dg.addColorStop(0.55, 'rgba(228,178,104,.10)');
+    dg.addColorStop(1, 'rgba(150,96,44,0)');
+    g.fillStyle = dg;
+    g.fillRect(-rx, -rx, rx * 2, rx * 2);
+    g.fillStyle = 'rgba(255,248,208,.28)';
+    g.fillRect(-rx * 0.55, -1, rx * 1.1, 1);
+    g.restore();
+  }
+
+  // 风纹：同向细长波线，读作沙脊
+  for (let i = 0; i < 1300; i++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * H);
+    const len = 3 + Math.floor(r() * 9);
+    g.fillStyle = r() < 0.55 ? 'rgba(255,236,182,.34)' : 'rgba(150,96,44,.26)';
+    for (let k = 0; k < len; k++) {
+      g.fillRect(x + k, y + Math.floor(Math.sin(k * 0.9 + i) * 1.2), 1, 1);
+    }
+  }
+
+  // 干裂与碎砂
+  for (let i = 0; i < 340; i++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * H);
+    g.fillStyle = r() < 0.5 ? 'rgba(255,244,204,.24)' : 'rgba(110,66,28,.22)';
+    g.fillRect(x, y, 1, 1);
+  }
+
+  // 风蚀碎石：投影 + 亮顶
+  for (let i = 0; i < 70; i++) {
+    const x = 3 + Math.floor(r() * (W - 7)), y = 8 + Math.floor(r() * (H - 14));
+    const w = 2 + Math.floor(r() * 3);
+    g.fillStyle = 'rgba(92,52,20,.30)';
+    g.fillRect(x, y + 2, w, 1);
+    g.fillStyle = r() < 0.5 ? '#8a6038' : '#9c7144';
+    g.fillRect(x, y, w, 2);
+    g.fillStyle = 'rgba(255,242,198,.45)';
+    g.fillRect(x, y, 1, 1);
+  }
+
+  // 枯灌木：几根暗枝 + 一两片存活的绿叶
+  for (let i = 0; i < 16; i++) {
+    const cx = 8 + Math.floor(r() * (W - 16)), cy = 12 + Math.floor(r() * (H - 26));
+    g.fillStyle = 'rgba(92,54,24,.55)';
+    for (let k = 0; k < 4; k++) {
+      const dx = Math.round((r() - 0.5) * 9), h = 3 + Math.floor(r() * 5);
+      g.fillRect(cx + dx, cy - h, 1, h);
+      g.fillRect(cx + dx + (dx < 0 ? -1 : 1), cy - h + 1, 1, 2);
+    }
+    if (r() < 0.4) {
+      g.fillStyle = 'rgba(140,168,86,.7)';
+      g.fillRect(cx + 1, cy - 2, 1, 1);
+      g.fillRect(cx - 1, cy - 1, 1, 1);
+    }
+  }
+
+  // 底边热砂压暗
+  const bot = g.createLinearGradient(0, H - 24, 0, H);
+  bot.addColorStop(0, 'rgba(96,52,18,0)');
+  bot.addColorStop(1, 'rgba(96,52,18,.20)');
+  g.fillStyle = bot;
+  g.fillRect(0, H - 24, W, 24);
+
+  // 四周暖边
+  g.fillStyle = 'rgba(96,56,18,.20)';
+  g.fillRect(0, 0, W, 2); g.fillRect(0, H - 2, W, 2);
+  g.fillRect(0, 0, 2, H); g.fillRect(W - 2, 0, 2, H);
+}
+
+/* ---------- 霓虹：暗色地砖 + 灯带 + 反光（烘焙底图） ---------- */
+function bakeNeon(g) {
+  const r = lcg(332211);
+
+  // 夜色地面：深紫黑，中间略亮
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1b1332');
+  bg.addColorStop(0.45, '#120d22');
+  bg.addColorStop(1, '#08060f');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+
+  // 地砖缝
+  g.fillStyle = 'rgba(130,110,200,.08)';
+  for (let x = 0; x < W; x += 16) g.fillRect(x, 0, 1, H);
+  for (let y = 0; y < H; y += 16) g.fillRect(0, y, W, 1);
+
+  // 油污与阴影斑块
+  for (let i = 0; i < 26; i++) {
+    const cx = r() * W, cy = r() * H, rx = 8 + r() * 20, ry = 4 + r() * 9;
+    g.save();
+    g.translate(cx, cy);
+    g.scale(1, ry / rx);
+    g.fillStyle = r() < 0.5 ? 'rgba(4,3,10,.42)' : 'rgba(48,30,84,.20)';
+    g.fillRect(-rx, -rx, rx * 2, rx * 2);
+    g.restore();
+  }
+
+  // 反光水滩：暗底 + 彩色反光边
+  for (let i = 0; i < 9; i++) {
+    const cx = 10 + r() * (W - 20), cy = 10 + r() * (H - 20);
+    const rx = 6 + r() * 12, ry = 2 + r() * 4;
+    g.save();
+    g.translate(cx, cy);
+    g.scale(1, ry / rx);
+    g.fillStyle = 'rgba(10,8,24,.55)';
+    g.fillRect(-rx, -rx, rx * 2, rx * 2);
+    g.fillStyle = r() < 0.5 ? 'rgba(255,107,214,.18)' : 'rgba(92,225,255,.18)';
+    g.fillRect(-rx * 0.8, -rx * 0.15, rx * 1.6, 1);
+    g.restore();
+  }
+
+  // 细碎 LED 与铆钉
+  for (let i = 0; i < 120; i++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * H);
+    const warm = r() < 0.4;
+    g.fillStyle = warm ? 'rgba(255,196,120,.20)' : 'rgba(140,210,255,.16)';
+    g.fillRect(x, y, 1, 1);
+  }
+
+  // 灯带：暖色光晕 + 1px 灯芯
+  for (const l of NEON_LINES) {
+    g.globalAlpha = 0.07;
+    g.fillStyle = l.col;
+    if (l.axis === 0) g.fillRect(l.x, l.y - 2, l.len, 5);
+    else g.fillRect(l.x - 2, l.y, 5, l.len);
+    g.globalAlpha = 0.32;
+    if (l.axis === 0) g.fillRect(l.x, l.y, l.len, 1);
+    else g.fillRect(l.x, l.y, 1, l.len);
+    g.globalAlpha = 1;
+  }
+
+  // 顶部压暗 + 四周暗边
+  const tg = g.createLinearGradient(0, 0, 0, 46);
+  tg.addColorStop(0, 'rgba(4,2,10,.55)');
+  tg.addColorStop(1, 'rgba(4,2,10,0)');
+  g.fillStyle = tg;
+  g.fillRect(0, 0, W, 46);
+  g.fillStyle = 'rgba(4,2,10,.55)';
+  g.fillRect(0, 0, W, 2); g.fillRect(0, H - 2, W, 2);
+  g.fillRect(0, 0, 2, H); g.fillRect(W - 2, 0, 2, H);
+}
+
 function drawBackdrop() {
   if (map.id === 'snow') {
     ctx.drawImage(getScene('snow'), 0, 0);
@@ -939,6 +1146,47 @@ function drawBackdrop() {
       ctx.globalAlpha = 0.42 + 0.3 * Math.sin(time * 2.6 + em.ph);
       ctx.fillStyle = em.sz > 1 ? '#ffd166' : '#ff6a48';
       ctx.fillRect(Math.round(em.x + Math.sin(time * 1.4 + em.ph) * 1.6), Math.round(y), em.sz, em.sz);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+  if (map.id === 'desert') {
+    ctx.drawImage(getScene('desert'), 0, 0);
+    // 热浪：轻微暖色呼吸
+    const pulse = 0.5 + 0.5 * Math.sin(time * 1.3);
+    ctx.globalAlpha = 0.05 + 0.04 * pulse;
+    ctx.fillStyle = '#ffdca0';
+    ctx.fillRect(0, 0, W, H);
+    // 横向沙粒：沙暴的方向感
+    for (const s of SAND_STREAK) {
+      const x = ((s.x + time * s.sp) % (W + 40)) - 20;
+      const y = s.y + Math.sin(time * 1.6 + s.ph) * 2;
+      ctx.globalAlpha = s.al * (0.6 + 0.4 * Math.sin(time * 2 + s.ph));
+      ctx.fillStyle = '#ffe8bc';
+      ctx.fillRect(Math.round(x), Math.round(y), s.len, 1);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+  if (map.id === 'neon') {
+    ctx.drawImage(getScene('neon'), 0, 0);
+    // 灯带呼吸
+    for (let i = 0; i < NEON_LINES.length; i++) {
+      const l = NEON_LINES[i];
+      ctx.globalAlpha = 0.09 + 0.07 * Math.sin(time * 1.5 + i * 1.3);
+      ctx.fillStyle = l.col;
+      if (l.axis === 0) ctx.fillRect(l.x, l.y, l.len, 1);
+      else ctx.fillRect(l.x, l.y, 1, l.len);
+    }
+    // 扫光带
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#9ef4ff';
+    ctx.fillRect(0, Math.round((time * 9) % H), W, 1);
+    // 地面反光点
+    for (const gl of NEON_GLINT) {
+      ctx.globalAlpha = 0.22 + 0.42 * Math.abs(Math.sin(time * gl.sp + gl.ph));
+      ctx.fillStyle = (gl.ph % 2 < 1) ? '#ffd0f5' : '#c8f8ff';
+      ctx.fillRect(Math.round(gl.x), Math.round(gl.y), gl.sz, gl.sz);
     }
     ctx.globalAlpha = 1;
     return;

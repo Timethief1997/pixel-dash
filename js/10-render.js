@@ -355,6 +355,72 @@ const HERO_ART = {
       '....kk..kk......',
     ],
   },
+  ninja: {
+    /* 忍者：尖顶黑蓝斗篷、深色面罩里一双冷光眼、红围巾与绑腿，不带武器 */
+    pal: { k: '#101018', N: '#232a4a', n: '#39406b', M: '#171c30', e: '#7ef0ff', R: '#e0504a', b: '#2c3350', o: '#0e0e16' },
+    art: [
+      '......kkkk......',
+      '.....kNNNNk.....',
+      '....kNNNNNNk....',
+      '...kNNNNNNNNk...',
+      '..kNNNNNNNNNNk..',
+      '...kMMMMMMMMk...',
+      '...kMeeMMeeMk...',
+      '...kMMMMMMMMk...',
+      '...kRRRRRRRRk...',
+      '..kbRRRRRRRbbk..',
+      '..kbNbbbbbbNbk..',
+      '..kbbbbbbbbbbk..',
+      '...kbbbbbbbbk...',
+      '....kk..kk......',
+      '....o....o......',
+      '...oo....oo.....',
+    ],
+  },
+  smith: {
+    /* 铁匠：棕头巾、连鬓胡、皮围裙，双手是发着橙光的炉火，不带武器 */
+    pal: { k: '#171310', B: '#8a5230', b: '#b06b3c', s: '#e7a877', S: '#c07d52', d: '#3a2a1e', A: '#553a28', a: '#6f4c33', E: '#ff9a3c', e: '#ff9a3c', f: '#241f1f' },
+    art: [
+      '....kkkkkk......',
+      '...kBBBBBBk.....',
+      '..kBbbbbbbBk....',
+      '..kBbbbbbbBk....',
+      '..kssssssssk....',
+      '..ksseessssk....',
+      '..ksssSsssSk....',
+      '..kddddddddk....',
+      '..kAAaaaaAAk....',
+      '.ksAAaaaaAAsk...',
+      '.kEAAaaaaAAEk...',
+      '..kAaaaaaaAk....',
+      '..kAaaaaaaAk....',
+      '...kk..kk.......',
+      '...ff..ff.......',
+      '..fff..fff......',
+    ],
+  },
+  firefly: {
+    /* 萤火：一对触角、会发光的萤绿身体、半透明翅膀与金色腹灯，像一只会走的小灯 */
+    pal: { k: '#14201a', G: '#7fe08a', Y: '#ffe066', e: '#1a2418', w: '#dff8ff', a: '#9ad86a' },
+    art: [
+      '...k......k.....',
+      '...a.k..k.a.....',
+      '..kkkkkkkkkk....',
+      '..kGGGGGGGGk....',
+      '..kGYGGGGYGk....',
+      '..kGeeGGeeGk....',
+      '..kGGGGGGGGk....',
+      '..kwGGGGGGwk....',
+      '.kwwkGGGGkwwk...',
+      '.kwwkGGGGkwwk...',
+      '..kwkGGGGkwk....',
+      '...kGGGGGGk.....',
+      '...kGYYYGGk.....',
+      '....kk..kk......',
+      '...k......k.....',
+      '..kk......kk....',
+    ],
+  },
 };
 
 /* 缓存：id|帧|描边白 → 离屏画布 */
@@ -676,41 +742,62 @@ function render() {
   // 背景（按地图主题：草原 / 雪原 / 熔岩，见 01-core.js 的 bakeSnow / bakeLava）
   drawBackdrop();
 
-  // 冰面：淡蓝椭圆，踩上去明显变慢
+  // 冰面 / 流沙：踩上去会明显变慢（同一套地形数据，按地图换材质）
+  const onSnow = map.id === 'snow';
+  const onSand = map.id === 'desert';
   for (const i of terrain.ice) {
-    // 雪原冰面：更实的冰蓝 + 冷白高光，亮底图上也能明显读出来
-    const onSnow = map.id === 'snow';
-    ctx.globalAlpha = onSnow ? 0.5 : 0.30;
-    ctx.fillStyle = onSnow ? '#9fd4f2' : '#bfe9ff';
+    ctx.globalAlpha = onSnow ? 0.5 : onSand ? 0.42 : 0.30;
+    ctx.fillStyle = onSnow ? '#9fd4f2' : onSand ? '#d8a860' : '#bfe9ff';
     ctx.beginPath();
     ctx.ellipse(i.x, i.y, i.r, i.r * 0.62, 0, 0, TAU);
     ctx.fill();
-    ctx.globalAlpha = onSnow ? 0.34 : 0.16;
-    ctx.strokeStyle = onSnow ? '#f0fbff' : '#ffffff';
+    ctx.globalAlpha = onSnow ? 0.34 : onSand ? 0.30 : 0.16;
+    ctx.strokeStyle = onSnow ? '#f0fbff' : onSand ? '#f6d99a' : '#ffffff';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.ellipse(i.x, i.y, i.r, i.r * 0.62, 0, 0, TAU);
     ctx.stroke();
-    ctx.globalAlpha = onSnow ? 0.26 : 0.16;
+    ctx.globalAlpha = onSnow ? 0.26 : onSand ? 0.22 : 0.16;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.ellipse(i.x - 2, i.y - 2, i.r * 0.66, i.r * 0.36, 0, 0, TAU);
     ctx.fill();
+    if (onSand) {
+      // 流沙漩涡：两道同心弧，和雪地/冰面的可读性区分开
+      ctx.globalAlpha = 0.34;
+      ctx.strokeStyle = '#a97a3f';
+      ctx.beginPath();
+      ctx.ellipse(i.x, i.y, i.r * 0.62, i.r * 0.34, 0.4, 0, TAU * 0.7);
+      ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
 
-  // 岩石：阴影 + 主体 + 顶部高光（雪原雪盖 / 熔岩焦岩）
+  // 岩石：阴影 + 主体 + 顶部高光（雪原雪盖 / 荒漠砂石 / 霓虹金属块）
+  const rockBody = map.id === 'snow' ? '#8fa3b8' : map.id === 'desert' ? '#8a6a44'
+    : map.id === 'neon' ? '#232438' : '#3d2b28';
+  const rockTop = map.id === 'snow' ? '#c6d6e4' : map.id === 'desert' ? '#c99a5e'
+    : map.id === 'neon' ? '#3a3f63' : '#7d4630';
   for (const r of terrain.rocks) {
     ctx.fillStyle = 'rgba(0,0,0,.30)';
     ctx.beginPath();
     ctx.ellipse(r.x + 1, r.y + 3, r.r, r.r * 0.55, 0, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = map.id === 'snow' ? '#8fa3b8' : '#3d2b28';
+    ctx.fillStyle = rockBody;
     ctx.beginPath();
     ctx.arc(r.x, r.y, r.r, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = map.id === 'snow' ? '#c6d6e4' : '#7d4630';
+    ctx.fillStyle = rockTop;
     ctx.fillRect(Math.round(r.x - r.r / 2), Math.round(r.y - r.r / 2), Math.max(2, Math.round(r.r)), 2);
+    if (map.id === 'neon') {
+      ctx.globalAlpha = 0.7;
+      ctx.strokeStyle = '#ff6bd6';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, r.r, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
 
   // 陨石预警：闪烁落点圈
@@ -804,21 +891,29 @@ function render() {
     }
   }
 
-  // 地面区域：毒雾绿点云 / 熔岩橙红余烬，随剩余时间淡出
+  // 地面区域：毒雾绿点云 / 熔岩橙红余烬 / 霓虹电栅青色电弧，随剩余时间淡出
   for (const h of hazards) {
     const lava = h.kind === 'lava';
+    const shock = h.kind === 'shock';
     const a = Math.min(1, h.life / (h.max || 5));
-    const pulse = 0.5 + 0.5 * Math.sin(time * (lava ? 9 : 6) + h.x);
-    ctx.globalAlpha = (lava ? 0.16 : 0.10) * a;
-    ctx.fillStyle = lava ? '#ff6a3d' : '#7ddc7d';
+    const pulse = 0.5 + 0.5 * Math.sin(time * (lava ? 9 : shock ? 16 : 6) + h.x);
+    ctx.globalAlpha = (lava ? 0.16 : shock ? 0.10 : 0.10) * a;
+    ctx.fillStyle = lava ? '#ff6a3d' : shock ? '#5ce1ff' : '#7ddc7d';
     ctx.fillRect(Math.round(h.x - h.r), Math.round(h.y - h.r), h.r * 2, h.r * 2);
     ctx.globalAlpha = (0.30 + 0.18 * pulse) * a;
-    ctx.fillStyle = lava ? '#ffd166' : '#7ddc7d';
+    ctx.fillStyle = lava ? '#ffd166' : shock ? '#bff8ff' : '#7ddc7d';
     const n = Math.max(18, Math.round(h.r * 2.2));
     for (let i = 0; i < n; i++) {
-      const ang = (i / n) * TAU + time * 0.5;
+      const ang = (i / n) * TAU + time * (shock ? 2.2 : 0.5);
       const rr = h.r * (0.35 + 0.65 * ((i * 7) % n) / n);
       ctx.fillRect(Math.round(h.x + Math.cos(ang) * rr), Math.round(h.y + Math.sin(ang) * rr), 1, 1);
+    }
+    if (shock) {
+      // 电弧十字：让电栅在一堆彩色特效里仍然一眼能认
+      ctx.globalAlpha = (0.45 + 0.4 * pulse) * a;
+      ctx.fillStyle = '#eaffff';
+      ctx.fillRect(Math.round(h.x - h.r * 0.6), Math.round(h.y), Math.round(h.r * 1.2), 1);
+      ctx.fillRect(Math.round(h.x), Math.round(h.y - h.r * 0.6), 1, Math.round(h.r * 1.2));
     }
   }
   ctx.globalAlpha = 1;
@@ -900,9 +995,15 @@ function render() {
 
   ctx.restore();
 
-  // 暗角：雪原用冷蓝边，熔岩带红色呼吸，其余按难度
+  // 暗角：雪原冷蓝、荒漠暖褐、霓虹紫边，熔岩带红色呼吸，其余按难度
   if (map.id === 'snow') {
     ctx.fillStyle = VIGNETTE_SNOW;
+    ctx.fillRect(0, 0, W, H);
+  } else if (map.id === 'desert') {
+    ctx.fillStyle = VIGNETTE_DESERT;
+    ctx.fillRect(0, 0, W, H);
+  } else if (map.id === 'neon') {
+    ctx.fillStyle = VIGNETTE_NEON;
     ctx.fillRect(0, 0, W, H);
   } else {
     ctx.globalAlpha = diffKey === 'casual' ? 0.24 : diffKey === 'normal' ? 0.18 : 1;

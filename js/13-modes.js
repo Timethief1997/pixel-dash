@@ -14,8 +14,9 @@ function mapMods(m) {
     '玩家速度 ×' + m.playerSpd.toFixed(2),
     '敌人速度 ×' + m.enemySpd.toFixed(2),
     m.rocks ? '岩石 ' + m.rocks : null,
-    m.ice ? '冰面 ' + m.ice : null,
+    m.ice ? (m.id === 'desert' ? '流沙 ' : '冰面 ') + m.ice : null,
     m.meteor ? '陨石 ' + m.meteor + 's' : null,
+    m.shock ? '电栅 ' + m.shock + 's' : null,
   ].filter(Boolean).join(' · ');
 }
 

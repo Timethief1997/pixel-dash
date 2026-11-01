@@ -47,7 +47,10 @@ function tryDash() {
   p.returnT = 0;
   p.dashT = p.stats.dashTime;
   p.invuln = Math.max(p.invuln, p.stats.dashTime + 0.2 + p.stats.invulnBonus);
+  /* 忍者 · 潜行：落地后额外 0.25 秒无敌，冲刺期间还能穿过岩石 */
+  if (p.heroSkill === 'blink') p.invuln += 0.25;
   p.dashDx = dx; p.dashDy = dy;
+  p.emberTick = 0;
   p.hitIds.clear();
 
   burst(p.x, p.y, '#63d9ff', 7, 50);
@@ -166,6 +169,14 @@ function updatePlayer(dt) {
         trails.push({ x: p.x, y: p.y, r: 6, life: p.stats.trailTime, max: p.stats.trailTime });
       }
     }
+    // 铁匠 · 熔锻：冲刺路径自带灼烧余烬
+    if (p.heroSkill === 'ember') {
+      p.emberTick -= dt;
+      if (p.emberTick <= 0) {
+        p.emberTick = 0.06;
+        trails.push({ x: p.x, y: p.y, r: 5, life: 0.55, max: 0.55 });
+      }
+    }
 
     // 冲刺穿透伤害
     for (const e of enemies) {
@@ -195,6 +206,10 @@ function updatePlayer(dt) {
               texts.push({ x: p.x, y: p.y - 10, vy: -18, life: 0.7, text: '+1', color: '#7dffb0' });
             }
           }
+        }
+        /* 萤火 · 连冲：冲刺击杀返还充能进度，越打越能连着冲 */
+        if (killed && p.heroSkill === 'chain') {
+          p.dashRefill = Math.min(p.dashRefill + 0.45, Math.max(0, p.stats.dashCd - 0.05));
         }
         if (killed && tutorial && tutorial.active && tutorial.step === 2) tutAdvance();
       }
@@ -260,7 +275,8 @@ function updatePlayer(dt) {
 
   p.x = clamp(p.x, 6, W - 6);
   p.y = clamp(p.y, 6, H - 6);
-  resolveRocks(p);
+  /* 忍者冲刺时可穿过岩石，其余角色照常被挡住 */
+  if (!(p.heroSkill === 'blink' && p.dashT > 0)) resolveRocks(p);
   p.x = clamp(p.x, 6, W - 6);
   p.y = clamp(p.y, 6, H - 6);
 
@@ -915,13 +931,15 @@ function updateHazards(dt) {
     h.life -= dt;
     const d = Math.hypot(player.x - h.x, player.y - h.y);
     if (d < h.r) {
-      if (h.kind === 'lava') {
+      if (h.kind === 'lava' || h.kind === 'shock') {
         if (player.lavaTick <= 0) {
           player.lavaTick = 1.2;
           player.hp -= 1;
-          texts.push({ x: player.x, y: player.y - 10, vy: -18, life: 0.7, text: '-1 烫伤', color: '#ff9a5c' });
-          burst(player.x, player.y, '#ff8a4a', 8, 70);
-          blip(150, 0.1, 'square', 0.05, -30);
+          const shock = h.kind === 'shock';
+          texts.push({ x: player.x, y: player.y - 10, vy: -18, life: 0.7,
+            text: shock ? '-1 电击' : '-1 烫伤', color: shock ? '#7ef0ff' : '#ff9a5c' });
+          burst(player.x, player.y, shock ? '#bff8ff' : '#ff8a4a', 8, 70);
+          blip(shock ? 880 : 150, 0.1, 'square', 0.05, shock ? 200 : -30);
           if (player.hp <= 0) { endGame(false); return; }
         }
       } else {
@@ -933,30 +951,46 @@ function updateHazards(dt) {
   hazards = hazards.filter((h) => h.life > 0);
 }
 
-/* 熔岩图：预警 1.1 秒后陨石砸落，留下短暂熔岩 */
+/* 熔岩图：预警 1.1 秒后陨石砸落，留下短暂熔岩；霓虹图：地砖周期性通电 */
 function updateMapTerrain(dt) {
-  if (!map.meteor) return;
-  meteorT -= dt;
-  if (meteorT <= 0) {
-    meteorT = map.meteor + rand(-1.5, 1.5);
-    meteors.push({ x: rand(16, W - 16), y: rand(16, H - 16), warn: 1.1, life: 2.6, max: 2.6, explode: false });
-  }
   const p = player;
-  for (const m of meteors) {
-    m.life -= dt;
-    if (m.explode) continue;
-    m.warn -= dt;
-    if (m.warn <= 0) {
-      m.explode = true;
-      hazards.push({ x: m.x, y: m.y, r: 15, life: 2.2, max: 2.2, kind: 'lava' });
-      effects.push({ x: m.x, y: m.y, r: 16, life: 0.32, max: 0.32, color: '#ff8a4a' });
-      burst(m.x, m.y, '#ffb15c', 12, 95);
-      shake = Math.max(shake, 6);
-      blip(110, 0.16, 'square', 0.06, -50);
-      if (p && state === 'playing' && Math.hypot(p.x - m.x, p.y - m.y) < 15 + p.r) hitPlayer({ x: m.x, y: m.y });
+
+  if (map.meteor) {
+    meteorT -= dt;
+    if (meteorT <= 0) {
+      meteorT = map.meteor + rand(-1.5, 1.5);
+      meteors.push({ x: rand(16, W - 16), y: rand(16, H - 16), warn: 1.1, life: 2.6, max: 2.6, explode: false });
+    }
+    for (const m of meteors) {
+      m.life -= dt;
+      if (m.explode) continue;
+      m.warn -= dt;
+      if (m.warn <= 0) {
+        m.explode = true;
+        hazards.push({ x: m.x, y: m.y, r: 15, life: 2.2, max: 2.2, kind: 'lava' });
+        effects.push({ x: m.x, y: m.y, r: 16, life: 0.32, max: 0.32, color: '#ff8a4a' });
+        burst(m.x, m.y, '#ffb15c', 12, 95);
+        shake = Math.max(shake, 6);
+        blip(110, 0.16, 'square', 0.06, -50);
+        if (p && state === 'playing' && Math.hypot(p.x - m.x, p.y - m.y) < 15 + p.r) hitPlayer({ x: m.x, y: m.y });
+      }
+    }
+    meteors = meteors.filter((m) => m.life > 0);
+  }
+
+  if (map.shock) {
+    shockT -= dt;
+    if (shockT <= 0) {
+      shockT = map.shock + rand(-1, 1);
+      for (let i = 0; i < 2; i++) {
+        hazards.push({
+          x: rand(18, W - 18), y: rand(18, H - 18),
+          r: 16, life: 2.2, max: 2.2, kind: 'shock',
+        });
+      }
+      blip(980, 0.1, 'square', 0.04, -120);
     }
   }
-  meteors = meteors.filter((m) => m.life > 0);
 }
 
 function updateParticles(dt) {
