@@ -361,7 +361,7 @@ function renderAch() {
         '<div><div class="aname">' + (un ? a.name : '？？？') + '</div>' +
         '<div class="akind">' + (a.kind === 'pos' ? '正面 · 荣耀' : '整活 · 黑历史') + '</div></div></div>' +
       '<div class="adesc">' + a.desc + '</div>' +
-      '<div class="areward">奖励 +' + achMedalReward(a) + ' 勋章</div>' +
+      '<div class="areward">奖励 +' + achMedalReward(a) + ' ' + ico('medal') + '勋章</div>' +
       '<div class="adate">' + (un ? '已解锁 · ' + achDate(ts) : '未解锁') + '</div>' +
     '</div>';
   }).join('');
@@ -369,10 +369,10 @@ function renderAch() {
   const n = ACHS.filter((a) => achUnlocked[a.id]).length;
   const pos = ACHS.filter((a) => a.kind === 'pos' && achUnlocked[a.id]).length;
   const neg = ACHS.filter((a) => a.kind === 'neg' && achUnlocked[a.id]).length;
-  $('#achNote').textContent = '已解锁 ' + n + ' / ' + total +
+  $('#achNote').innerHTML = '已解锁 ' + n + ' / ' + total +
     '　·　正面 ' + pos + ' / ' + ACHS.filter((a) => a.kind === 'pos').length +
     '　·　整活 ' + neg + ' / ' + ACHS.filter((a) => a.kind === 'neg').length +
-    '　·　勋章 ' + medalBalance() + ' / ' + MEDAL_CAP + ' 可用（已得 ' + medalsEarned() + '）';
+    '　·　' + ico('medal') + ' ' + medalBalance() + ' / ' + MEDAL_CAP + ' 可用（已得 ' + medalsEarned() + '）';
 }
 
 function openAch() {
@@ -461,7 +461,7 @@ function endGame(win, quit) {
     cell('存活', fmt(time), '') +
     cell('击杀', kills, 'hot') +
     cell('等级', 'Lv.' + player.level, 'gold') +
-    cell('金币', '+' + bank.run + (bank.total ? ' · 共 ' + bank.total : ''), 'coin');
+    cell(ico('coin') + '金币', '+' + bank.run + (bank.total ? ' · 共 ' + bank.total : ''), 'coin');
   $('#endFlags').innerHTML =
     (newBest ? '<span class="rflag">★ 新纪录</span>' : '') +
     (newAch.length ? '<span class="rflag ach">✦ 新成就 · ' + newAch.join(' · ') + '</span>' : '') +

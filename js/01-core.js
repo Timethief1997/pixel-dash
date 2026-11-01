@@ -23,6 +23,49 @@ const irand = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+/* 金币 / 勋章小图标：8×8 像素 SVG，界面里和数字一起显示 */
+const PIX_ICON = {
+  coin:
+    '<svg class="pixIco" viewBox="0 0 8 8" aria-hidden="true" focusable="false">' +
+      '<rect x="2" y="0" width="4" height="1" fill="#fff3b0"/>' +
+      '<rect x="1" y="1" width="6" height="1" fill="#ffd23d"/>' +
+      '<rect x="0" y="2" width="1" height="1" fill="#c98a1b"/>' +
+      '<rect x="1" y="2" width="6" height="1" fill="#ffcf4a"/>' +
+      '<rect x="7" y="2" width="1" height="1" fill="#c98a1b"/>' +
+      '<rect x="0" y="3" width="1" height="2" fill="#c98a1b"/>' +
+      '<rect x="1" y="3" width="2" height="2" fill="#ffe066"/>' +
+      '<rect x="3" y="3" width="3" height="2" fill="#ffcf4a"/>' +
+      '<rect x="6" y="3" width="1" height="2" fill="#e0a72c"/>' +
+      '<rect x="7" y="3" width="1" height="2" fill="#c98a1b"/>' +
+      '<rect x="0" y="5" width="1" height="1" fill="#c98a1b"/>' +
+      '<rect x="1" y="5" width="6" height="1" fill="#e0a72c"/>' +
+      '<rect x="7" y="5" width="1" height="1" fill="#c98a1b"/>' +
+      '<rect x="1" y="6" width="6" height="1" fill="#c98a1b"/>' +
+      '<rect x="2" y="7" width="4" height="1" fill="#a06c12"/>' +
+    '</svg>',
+  medal:
+    '<svg class="pixIco" viewBox="0 0 8 8" aria-hidden="true" focusable="false">' +
+      '<rect x="2" y="0" width="2" height="2" fill="#e5484d"/>' +
+      '<rect x="4" y="0" width="2" height="2" fill="#b8323b"/>' +
+      '<rect x="1" y="2" width="6" height="1" fill="#b07a12"/>' +
+      '<rect x="0" y="3" width="1" height="3" fill="#b07a12"/>' +
+      '<rect x="1" y="3" width="6" height="3" fill="#ffd75e"/>' +
+      '<rect x="3" y="3" width="2" height="1" fill="#fff6c9"/>' +
+      '<rect x="3" y="4" width="2" height="2" fill="#e0a72c"/>' +
+      '<rect x="7" y="3" width="1" height="3" fill="#b07a12"/>' +
+      '<rect x="1" y="6" width="6" height="1" fill="#b07a12"/>' +
+      '<rect x="2" y="7" width="4" height="1" fill="#8a5f12"/>' +
+    '</svg>',
+};
+function ico(name) { return PIX_ICON[name] || ''; }
+/* index.html 里的静态占位：<span data-ico="coin"></span> */
+function paintStaticIcons() {
+  for (const el of document.querySelectorAll('[data-ico]')) {
+    if (el.dataset.ico) el.innerHTML = ico(el.dataset.ico);
+  }
+}
+paintStaticIcons();
+
 /* 预生成的画布渐变（每帧复用，别在循环里 new） */
 const VIGNETTE = ctx.createRadialGradient(W / 2, H / 2, 54, W / 2, H / 2, 196);
 VIGNETTE.addColorStop(0, 'rgba(0,0,0,0)');

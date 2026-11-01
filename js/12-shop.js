@@ -33,8 +33,8 @@ function refreshLoadout() {
   el.innerHTML =
     '出战 <b style="color:' + h.col + '">' + h.name + '</b>' +
     ' · 无尽地图 <b>' + map.name + '</b>' +
-    ' · 金币 <b>' + loadCoins() + '</b>' +
-    ' · 勋章 <b>' + medalBalance() + '</b>/' + MEDAL_CAP;
+    ' · ' + ico('coin') + '<b>' + loadCoins() + '</b>' +
+    ' · ' + ico('medal') + '<b>' + medalBalance() + '</b>/' + MEDAL_CAP;
 }
 
 function heroStatLine(h) {
@@ -66,8 +66,8 @@ function heroCardsHtml() {
     const btn = on ? '出 战 中'
       : owned ? '装 备'
       : byMedal
-        ? (bal >= cost ? '兑换 · ' + cost + ' 勋章' : '还需 ' + (cost - bal) + ' 勋章')
-        : (total >= h.price ? '购买 · ' + h.price : '还需 ' + (h.price - total) + ' 金币');
+        ? (bal >= cost ? ico('medal') + ' 兑换 · ' + cost : '还需 ' + ico('medal') + ' ' + (cost - bal))
+        : (total >= h.price ? ico('coin') + ' 购买 · ' + h.price : '还需 ' + ico('coin') + ' ' + (h.price - total));
     return (
       '<div class="shopCard' + (on ? ' on' : '') + (owned ? '' : ' lock') + '" role="button" tabindex="0" ' +
         (byMedal ? 'data-exchange="' + h.id + '"' : 'data-hero="' + h.id + '"') + '>' +
@@ -85,7 +85,7 @@ function heroCardsHtml() {
         '<div class="scDesc">' + h.desc + '</div>' +
         heroStatLine(h) +
         (byMedal
-          ? '<div class="scStat" style="grid-template-columns:1fr">兑换价 <b>' + cost + ' 勋章</b> · ' +
+          ? '<div class="scStat" style="grid-template-columns:1fr">兑换价 ' + ico('medal') + '<b>' + cost + '</b> · ' +
               (owned ? '已兑换 1/1' : '库存 1/1') + '</div>'
           : '') +
         '<div class="scBtn">' + btn + '</div>' +

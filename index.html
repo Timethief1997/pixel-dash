@@ -1043,6 +1043,7 @@
     text-indent:.16em;color:#ffd894;
     text-shadow:0 3px 0 rgba(0,0,0,.35), 0 0 22px rgba(255,170,80,.16);
   }
+  .pixIco{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.2em;margin-right:.32em;image-rendering:pixelated;flex:none}
   .shopCoins{font-family:var(--mono);font-size:clamp(12px,2vmin,19px);color:#ffd76a;letter-spacing:.04em}
   .shopCoins b{font-size:1.18em}
   .shopWallet{display:flex;align-items:center;gap:1.4vmin;flex-wrap:wrap;justify-content:flex-end}
@@ -1321,8 +1322,8 @@
       <div class="shopHead">
         <div class="shopTitle">商 店</div>
         <div class="shopWallet">
-          <div class="shopCoins">金币 <b id="shopCoinsVal">0</b></div>
-          <div class="shopCoins medal">勋章 <b id="shopMedalsVal">0</b><span class="cap">/ <span id="shopMedalsCap">0</span> 上限</span></div>
+          <div class="shopCoins"><span data-ico="coin"></span><b id="shopCoinsVal">0</b></div>
+          <div class="shopCoins medal"><span data-ico="medal"></span><b id="shopMedalsVal">0</b><span class="cap">/ <span id="shopMedalsCap">0</span> 上限</span></div>
         </div>
       </div>
       <div class="stabs">
