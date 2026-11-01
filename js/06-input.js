@@ -359,6 +359,12 @@ $('#achBtn').addEventListener('click', openAch);
 $('#codexBackBtn').addEventListener('click', closeCodex);
 $('#achBackBtn').addEventListener('click', closeAch);
 $('#histBackBtn').addEventListener('click', closeHistory);
+/* 结算：保存战绩长图；成就：点已解锁卡片生成分享图 */
+$('#shareEndBtn').addEventListener('click', shareRunPoster);
+$('#achGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('.acard');
+  if (card && card.classList.contains('unlocked') && card.dataset.ach) shareAchCard(card.dataset.ach);
+});
 $('#histClearBtn').addEventListener('click', () => {
   storeRecords([]);
   renderHistory();

@@ -166,6 +166,17 @@ function paintMonster(g, left, top, s, o) {
     g.fillStyle = '#ffe066';
     g.fillRect(cx + 1, cy + 1, 2, 2);
   }
+
+  // 第五代：橙金外环，远看就能认出熔核形态
+  if (skin.nova) {
+    const cx = left + Math.round(s / 2), cy = top + Math.round(s / 2);
+    const rr = Math.round(s / 2) + 3;
+    g.fillStyle = 'rgba(255,196,90,.6)';
+    for (let i = 0; i < 12; i += 2) {
+      const a = (i / 12) * TAU;
+      g.fillRect(Math.round(cx + Math.cos(a) * rr), Math.round(cy + Math.sin(a) * rr), 1, 1);
+    }
+  }
 }
 
 function drawEnemy(e) {
@@ -207,6 +218,18 @@ function drawEnemy(e) {
   ctx.globalAlpha = 1;
 
   paintMonster(ctx, left, top, s, { color: bodyCol, edge: edgeCol, type: e.type, gen, flash: e.flash > 0 });
+
+  // 第五代熔核过载：血量低于 35% 时外圈亮起旋转的橙金火星
+  if (isBoss && gen >= 5 && e.hp <= e.maxHp * 0.35) {
+    const rr = e.r + 5;
+    ctx.fillStyle = '#ffb14a';
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * TAU + time * 0.6;
+      ctx.globalAlpha = 0.35 + 0.35 * Math.sin(time * 6 + i);
+      ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y + Math.sin(a) * rr), 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // 头顶感叹号
   if (warn) {

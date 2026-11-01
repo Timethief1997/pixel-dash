@@ -7,7 +7,25 @@
 function tryDash() {
   const p = player;
   if (state !== 'playing' || !p || paused) return;
-  if (p.dashT > 0 || p.dashCharges <= 0) return;
+  if (p.dashT > 0) return;
+
+  /* 回旋形态：冲刺结束后 0.45 秒内再按，沿原路折返且不耗充能 */
+  if (p.stats.dashReturn && p.returnT > 0) {
+    p.returnT = 0;
+    p.returnBack = true;
+    p.freezeT = 0;
+    p.dashT = p.stats.dashTime;
+    p.invuln = Math.max(p.invuln, p.stats.dashTime + 0.2 + p.stats.invulnBonus);
+    p.dashDx = -p.returnDx;
+    p.dashDy = -p.returnDy;
+    p.hitIds.clear();
+    burst(p.x, p.y, '#c08cff', 7, 50);
+    blip(540, 0.11, 'sawtooth', 0.045, -300);
+    if (tutorial && tutorial.active && tutorial.step === 1) tutAdvance();
+    return;
+  }
+
+  if (p.dashCharges <= 0) return;
 
   let dx = 0, dy = 0;
   if (keys['a'] || keys['arrowleft']) dx -= 1;
@@ -25,6 +43,8 @@ function tryDash() {
   p.dashCharges -= 1;
   if (achRun) achRun.dashes += 1;
   p.freezeT = 0;   // 冲刺可以震碎冰冻
+  p.returnBack = false;
+  p.returnT = 0;
   p.dashT = p.stats.dashTime;
   p.invuln = Math.max(p.invuln, p.stats.dashTime + 0.2 + p.stats.invulnBonus);
   p.dashDx = dx; p.dashDy = dy;
@@ -78,6 +98,7 @@ function updatePlayer(dt) {
   }
   if (p.freezeT > 0) p.freezeT -= dt;
   if (p.lavaTick > 0) p.lavaTick -= dt;
+  if (p.returnT > 0) p.returnT -= dt;
 
   // 中毒：每秒固定掉 1 点血，且期间无法吸血
   if (p.poisonT > 0) {
@@ -126,6 +147,14 @@ function updatePlayer(dt) {
 
   if (wasDashing) {
     p.dashT -= dt;
+    // 弧光形态：冲刺方向随时间持续偏转，形成弧线
+    if (p.stats.dashTurn > 0) {
+      const rot = p.stats.dashTurn * dt;
+      const c = Math.cos(rot), s = Math.sin(rot);
+      const nx = p.dashDx * c - p.dashDy * s;
+      const ny = p.dashDx * s + p.dashDy * c;
+      p.dashDx = nx; p.dashDy = ny;
+    }
     p.x += p.dashDx * p.stats.dashSpeed * dt;
     p.y += p.dashDy * p.stats.dashSpeed * dt;
 
@@ -144,7 +173,7 @@ function updatePlayer(dt) {
       const d = Math.hypot(e.x - p.x, e.y - p.y);
       if (d < e.r + p.stats.dashRadius) {
         p.hitIds.add(e.id);
-        let dmg = p.stats.dashDamage;
+        let dmg = p.stats.dashDamage * (p.returnBack ? 0.6 : 1);
         if (p.stats.rage > 0 && p.hp <= p.maxHp * 0.5) dmg *= (1 + p.stats.rage);
         let crit = false;
         if (p.stats.crit > 0 && Math.random() < p.stats.crit) { dmg *= 2; crit = true; }
@@ -182,6 +211,26 @@ function updatePlayer(dt) {
       p.dirx = ix / m;
       p.diry = iy / m;
     }
+  }
+
+  // 冲刺结束：回旋窗口记录 / 震地冲击波
+  if (wasDashing && p.dashT <= 0) {
+    if (p.stats.dashReturn && !p.returnBack) {
+      p.returnT = 0.45;
+      p.returnDx = p.dashDx;
+      p.returnDy = p.dashDy;
+    }
+    if (p.stats.dashQuake) {
+      const R = 30 + p.stats.dashRadius;
+      effects.push({ x: p.x, y: p.y, r: R, life: 0.34, max: 0.34, color: '#ffb14a' });
+      shake = Math.max(shake, 6);
+      for (const e of enemies) {
+        if (e.dead) continue;
+        if (Math.hypot(e.x - p.x, e.y - p.y) < R + e.r) damageEnemy(e, p.stats.dashDamage, p.x, p.y);
+      }
+      blip(90, 0.2, 'square', 0.07, -50);
+    }
+    p.returnBack = false;
   }
 
   // 冲刺结束 -> 爆炸
@@ -470,7 +519,7 @@ function spawnEnemy(type, x, y, plain) {
     if (uBase) names.push(uBase);
     if (affix) { const uEl = unlockCodex('el_' + affix); if (uEl) names.push(uEl); }
     if (type === 'boss') {
-      const uBoss = unlockCodex('boss' + Math.min(Math.max(bossGen, 1), 4));
+      const uBoss = unlockCodex('boss' + Math.min(Math.max(bossGen, 1), 5));
       if (uBoss) names.push(uBoss);
     }
     if (names.length) toast('图鉴解锁 · ' + names.join(' · '));
@@ -558,19 +607,22 @@ function updateEnemies(dt) {
     } else if (e.type === 'boss') {
       const gen = e.gen || 1;
       if (e.boost > 0) e.boost -= dt;
-      const sp = e.speed * (1 + 0.06 * (gen - 1)) * (e.boost > 0 ? 2.4 : 1);
+      /* 第五代熔核过载：血量低于 35% 后移速与出手全面加快 */
+      const core = gen >= 5 && e.hp <= e.maxHp * 0.35;
+      const sp = e.speed * (1 + 0.06 * (gen - 1)) * (e.boost > 0 ? 2.4 : 1) * (core ? 1.28 : 1);
       e.x += ux * sp * dt * slow * fz;
       e.y += uy * sp * dt * slow * fz;
       e.bossT -= dt;
       if (e.bossT <= 0) {
         const rage = e.hp <= e.maxHp * 0.5;
-        e.bossT = rage ? 2.5 : 3.4;
+        e.bossT = core ? 1.9 : rage ? 2.5 : 3.4;
         e.bossStep = (e.bossStep || 0) + 1;
-        // 招式随世代解锁：1 环形 → 2 召唤/毒池 → 3 冰锥/冲锋 → 4 全部
+        // 招式随世代解锁：1 环形 → 2 召唤/毒池 → 3 冰锥/冲锋 → 4 全部 → 5 熔核爆裂/地心裂隙
         const moves = ['ring'];
         if (gen >= 2) moves.push('summon', 'poison');
         if (gen >= 3) moves.push('frost', 'charge');
         if (gen >= 4) moves.push('fan');
+        if (gen >= 5) moves.push('nova', 'vein');
         const kind = moves[e.bossStep % moves.length];
         const bdmg = gen >= 4 ? 2 : 1;
 
@@ -628,6 +680,39 @@ function updateEnemies(dt) {
             ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 96, vy: Math.sin(a) * 96, r: 3, life: 5, dmg: bdmg, dead: false });
           }
           blip(70, 0.26, 'square', 0.07, -50);
+        } else if (kind === 'nova') {
+          // 熔核爆裂：以自身为圆心炸出一圈熔岩，只留一小段缺口
+          const n3 = 16;
+          const gapAt = Math.floor(rand(0, n3));
+          for (let i = 0; i < n3; i++) {
+            const d0 = Math.abs(i - gapAt);
+            if (Math.min(d0, n3 - d0) <= 1) continue;
+            const a = (i / n3) * TAU;
+            hazards.push({
+              x: clamp(e.x + Math.cos(a) * 30, 10, W - 10),
+              y: clamp(e.y + Math.sin(a) * 30, 10, H - 10),
+              r: 9, life: 3.2, max: 3.2, kind: 'lava',
+            });
+          }
+          for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * TAU;
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 62, vy: Math.sin(a) * 62, r: 3, life: 5, dmg: bdmg, dead: false });
+          }
+          effects.push({ x: e.x, y: e.y, r: 42, life: 0.4, max: 0.4, color: '#ff8a4a' });
+          shake = Math.max(shake, 8);
+          blip(70, 0.28, 'sawtooth', 0.08, -60);
+        } else if (kind === 'vein') {
+          // 地心裂隙：朝玩家方向烧出一条熔岩带
+          const base = Math.atan2(dy, dx);
+          for (let i = 1; i <= 8; i++) {
+            hazards.push({
+              x: clamp(e.x + Math.cos(base) * i * 13, 10, W - 10),
+              y: clamp(e.y + Math.sin(base) * i * 13, 10, H - 10),
+              r: 8, life: 2.6, max: 2.6, kind: 'lava',
+            });
+          }
+          burst(e.x + Math.cos(base) * 20, e.y + Math.sin(base) * 20, '#ff8a4a', 10, 80);
+          blip(240, 0.24, 'sawtooth', 0.06, -50);
         } else {
           // 四周扩散弹幕
           const base = Math.atan2(dy, dx);

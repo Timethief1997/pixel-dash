@@ -252,6 +252,7 @@ const BOSS_SKIN = [
   { name: '赤铜重甲', col: '#ffce4a', edge: '#d99b2c', spikes: 3, pauldron: true,  horn: false, core: false },
   { name: '焦土角斗', col: '#ffab3d', edge: '#d97c22', spikes: 5, pauldron: true,  horn: true,  core: false },
   { name: '终焉赤王', col: '#ff6a3d', edge: '#c73f1f', spikes: 5, pauldron: true,  horn: true,  core: true },
+  { name: '熔核 · 终焉', col: '#ff4a2e', edge: '#ffcf5c', spikes: 7, pauldron: true, horn: true, core: true, nova: true },
 ];
 function bossName(gen) {
   const g = Math.min(Math.max(gen || 1, 1), BOSS_SKIN.length);
@@ -294,6 +295,8 @@ const CODEX = [
     desc: '第 3 代，橙色并长出四支尖角。新增冲锋、七发扇形弹幕与冰锥，冰锥会减速并可能冻住你。' },
   { id: 'boss4', name: '终焉赤王', skill: '全招式 + 核心', pts: 200, icon: { type: 'boss', gen: 4 },
     desc: '第 4 代及以后，赤红并亮起胸口核心。全部招式轮转，弹幕伤害提高，每多一代血量 +30%；击杀后清空全场小兵。' },
+  { id: 'boss5', name: '熔核 · 终焉', skill: '熔核爆裂 + 地心裂隙', pts: 200, icon: { type: 'boss', gen: 5 },
+    desc: '第 5 代，赤红外壳裂开、七支尖角与橙金外环。新增「熔核爆裂」：以自身为圆心炸出一圈熔岩，只留几个缺口供你穿过；以及「地心裂隙」：沿你所在方向烧出一条熔岩带。血量低于 35% 时熔核过载：移动与出手更快。' },
 ];
 
 /* ---------- 基础属性 ---------- */
@@ -323,6 +326,11 @@ function baseStats() {
     rage: 0,
     shieldMax: 0,
     shieldCd: 0,
+    /* 冲刺形态（互斥）：'' / 'arc' 弧光 / 'return' 回旋 / 'quake' 震地 */
+    dashForm: '',
+    dashTurn: 0,
+    dashReturn: false,
+    dashQuake: false,
   };
 }
 
@@ -346,6 +354,7 @@ function makePlayer() {
     level: 1, xp: 0, xpNext: 4,
     dashCharges: Math.max(1, st.dashCharges), dashRefill: 0,
     dashT: 0, dashDx: 1, dashDy: 0,
+    returnT: 0, returnDx: 1, returnDy: 0, returnBack: false,
     hitIds: new Set(),
     dashKillCount: 0,
     shield: 0, shieldT: 0,
@@ -385,6 +394,17 @@ const UPGRADES = [
   { id: 'leech',   name: '嗜血',      rar: 3, max: 3, desc: '冲刺击杀攒够数量回 1 血（内部 1.5 秒冷却）', apply: (s) => { s.healKills = s.healKills === 0 ? 6 : Math.max(2, s.healKills - 1); } },
   { id: 'rage',    name: '背水一战',  rar: 3, max: 2, desc: '生命低于 50% 时冲刺伤害 +50%',  apply: (s) => { s.rage += 0.5; } },
   { id: 'ward',    name: '守护结界',  rar: 3, max: 2, desc: '获得 1 层护盾，可挡一次伤害（冷却 12 秒）', apply: (s) => { s.shieldMax += 1; s.shieldCd = s.shieldCd === 0 ? 12 : Math.max(6, s.shieldCd - 3); } },
+
+  /* ---- 金 · 冲刺形态（三选一，互斥）：冲刺仍是唯一技能 ---- */
+  { id: 'form_arc',    name: '弧光冲刺', rar: 3, max: 1, form: true,
+    desc: '冲刺改为弧线：途中持续偏转，能绕开正面弹幕',
+    apply: (s) => { s.dashForm = 'arc'; s.dashTurn = 4.0; s.dashTime += 0.05; } },
+  { id: 'form_return', name: '回旋冲刺', rar: 3, max: 1, form: true,
+    desc: '冲刺后 0.45 秒内再按冲刺，沿原路折返且不耗充能（60% 伤害）',
+    apply: (s) => { s.dashForm = 'return'; s.dashReturn = true; } },
+  { id: 'form_quake',  name: '震地冲刺', rar: 3, max: 1, form: true,
+    desc: '冲刺更短更宽，结束时砸出一圈冲击波',
+    apply: (s) => { s.dashForm = 'quake'; s.dashQuake = true; s.dashSpeed = Math.max(200, s.dashSpeed - 100); s.dashRadius += 8; s.dashDamage += 1; } },
 ];
 
 /* 稀有度权重：白 6 : 紫 3 : 金 1 */

@@ -4,12 +4,19 @@
 /* ============================================================
    升级界面
    ============================================================ */
+/* 可选项：已满级排除；冲刺形态互斥，已拥有任一形态后其余形态不再出现 */
+function upgAvailable(u) {
+  if ((player.upg[u.id] || 0) >= u.max) return false;
+  if (u.form && player.stats.dashForm) return false;
+  return true;
+}
+
 function openUpgrade() {
   if (state !== 'playing') return;
   state = 'upgrade';
   if (stickId !== null) stickReset();   // 收起摇杆，避免选牌时方向键卡住
 
-  const avail = UPGRADES.filter((u) => (player.upg[u.id] || 0) < u.max);
+  const avail = UPGRADES.filter(upgAvailable);
   if (!avail.length) {
     player.hp = Math.min(player.maxHp, player.hp + 2);
     pendingLevels = 0;
@@ -32,7 +39,7 @@ const RR_ICON =
 function renderUpgradeUI(flipIndex) {
   const box = $('#cards');
   box.innerHTML = '';
-  const hasAlt = UPGRADES.some((u) => (player.upg[u.id] || 0) < u.max && !shopOptions.some((o) => o.id === u.id));
+  const hasAlt = UPGRADES.some((u) => upgAvailable(u) && !shopOptions.some((o) => o.id === u.id));
   const canFlip = rerolls > 0 && hasAlt;
   shopOptions.forEach((u, i) => {
     const lvl = player.upg[u.id] || 0;
@@ -77,7 +84,7 @@ function renderUpgradeUI(flipIndex) {
 /* 单张翻转：消耗一次机会，只把这一张换成别的选项 */
 function flipCard(i) {
   if (state !== 'upgrade' || rerolls <= 0) return;
-  const avail = UPGRADES.filter((u) => (player.upg[u.id] || 0) < u.max && !shopOptions.some((o) => o.id === u.id));
+  const avail = UPGRADES.filter((u) => upgAvailable(u) && !shopOptions.some((o) => o.id === u.id));
   if (!avail.length) return;
   rerolls -= 1;
   shopOptions[i] = rollOptions(avail, 1)[0];

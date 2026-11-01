@@ -240,6 +240,8 @@ function saveAchStats() {
 let achUnlocked = loadAchStore();
 let achStats = loadAchStats();
 let achRun = null;
+/* 最近一局的结算快照：供「战绩长图」导出使用 */
+let lastRunInfo = null;
 
 /* 正面：荣耀；整活：黑历史。名字要够狠，条件要够损。 */
 const ACHS = [
@@ -325,7 +327,7 @@ function renderAch() {
   grid.innerHTML = ACHS.map((a) => {
     const ts = achUnlocked[a.id];
     const un = !!ts;
-    return '<div class="acard ' + a.kind + ' ' + (un ? 'unlocked' : 'locked') + '">' +
+    return '<div class="acard ' + a.kind + ' ' + (un ? 'unlocked' : 'locked') + '" data-ach="' + a.id + '">' +
       '<div class="atop"><span class="aseal">' + (a.kind === 'pos' ? '正' : '整') + '</span>' +
         '<div><div class="aname">' + (un ? a.name : '？？？') + '</div>' +
         '<div class="akind">' + (a.kind === 'pos' ? '正面 · 荣耀' : '整活 · 黑历史') + '</div></div></div>' +
@@ -399,6 +401,16 @@ function endGame(win, quit) {
   if (campaign && win && curLevel) unlockLevel(curLevel.id);
 
   const mc = MODES[modeKey] || MODES.endless;
+  lastRunInfo = {
+    win: !!win, quit: !!quit, score, time: Math.round(time), kills,
+    level: player.level, coins: bank.run, coinsTotal: bank.total,
+    newBest, best: best.score, ach: newAch,
+    mode: modeKey, modeName: mc.name, modeCol: mc.col,
+    stage: campaign && curLevel ? curLevel.id : 0,
+    stageName: campaign && curLevel ? curLevel.name : '',
+    wave: endless ? wave : 0,
+    hero: heroKey, date: Date.now(),
+  };
   let title, kicker;
   if (quit) { title = '本局结束'; kicker = 'R U N   E N D E D'; }
   else if (modeKey === 'tutorial') { title = win ? '教程完成' : '教程中断'; kicker = 'T U T O R I A L'; }
@@ -446,5 +458,266 @@ function endGame(win, quit) {
   endEl.classList.toggle('win', win);
   if (win) { spawnConfetti(); winJingle(); }
   layers.end.classList.remove('hidden');
+}
+
+/* ============================================================
+   战绩长图 / 成就分享卡：离屏画布 → PNG 下载
+   ============================================================ */
+const SH_FONT = 'ui-monospace, "PingFang SC", "Microsoft YaHei", monospace';
+const SH_URL = 'github.com/Timethief1997/pixel-dash';
+
+/* 统一的木质底板：木纹 + 双层描边 + 四角铆钉 */
+function shCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  const bg = g.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#3b2716');
+  bg.addColorStop(0.5, '#2a1a10');
+  bg.addColorStop(1, '#150c06');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(255,222,168,.05)';
+  for (let y = 6; y < h; y += 9) g.fillRect(0, y, w, 1);
+  g.strokeStyle = '#6f4a29'; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6);
+  g.strokeStyle = 'rgba(255,215,106,.32)'; g.lineWidth = 2; g.strokeRect(15, 15, w - 30, h - 30);
+  for (const p of [[26, 26], [w - 26, 26], [26, h - 26], [w - 26, h - 26]]) {
+    const rg = g.createRadialGradient(p[0] - 2, p[1] - 2, 0, p[0], p[1], 9);
+    rg.addColorStop(0, '#fff1c8'); rg.addColorStop(0.55, '#c8842e'); rg.addColorStop(1, '#5a3413');
+    g.fillStyle = rg;
+    g.beginPath(); g.arc(p[0], p[1], 7, 0, Math.PI * 2); g.fill();
+  }
+  return { c, g };
+}
+
+function shText(g, s, x, y, size, col, align, weight) {
+  g.font = (weight || 700) + ' ' + size + 'px ' + SH_FONT;
+  g.textAlign = align || 'left';
+  g.textBaseline = 'top';
+  g.fillStyle = col;
+  g.fillText(s, x, y);
+}
+
+/* 中文逐字换行 */
+function shWrap(g, text, x, y, maxW, size, col, lh) {
+  g.font = '400 ' + size + 'px ' + SH_FONT;
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.fillStyle = col;
+  let line = '', yy = y;
+  for (const ch of text) {
+    if (line && g.measureText(line + ch).width > maxW) {
+      g.fillText(line, x, yy);
+      line = ch; yy += lh;
+    } else line += ch;
+  }
+  if (line) g.fillText(line, x, yy);
+  return yy + lh;
+}
+
+function shPill(g, text, cx, y, size, col) {
+  g.font = '700 ' + size + 'px ' + SH_FONT;
+  const w = Math.max(96, g.measureText(text).width + 40);
+  const h = size + 20;
+  g.fillStyle = col + '22';
+  g.strokeStyle = col + 'aa';
+  g.lineWidth = 2;
+  g.beginPath();
+  if (g.roundRect) g.roundRect(cx - w / 2, y, w, h, h / 2);
+  else g.rect(cx - w / 2, y, w, h);
+  g.fill(); g.stroke();
+  shText(g, text, cx, y + 10, size, col, 'center', 700);
+  return y + h;
+}
+
+function shStat(g, label, val, x, y, w, col) {
+  g.fillStyle = 'rgba(0,0,0,.26)';
+  g.fillRect(x, y, w, 76);
+  g.strokeStyle = 'rgba(255,215,106,.22)';
+  g.lineWidth = 2;
+  g.strokeRect(x, y, w, 76);
+  shText(g, label, x + 16, y + 12, 18, '#c9a97f', 'left', 700);
+  shText(g, String(val), x + 16, y + 36, 34, col || '#f4e3c6', 'left', 800);
+}
+
+function shHero(g, id, x, y, size) {
+  const hero = HEROES.find((h) => h.id === id) || HEROES[0];
+  const col = hero.col || '#ffd76a';
+  const gs = g.createRadialGradient(x + size / 2, y + size / 2, size * 0.06, x + size / 2, y + size / 2, size * 0.9);
+  gs.addColorStop(0, col + '44');
+  gs.addColorStop(1, col + '00');
+  g.fillStyle = gs;
+  g.fillRect(x - size * 0.45, y - size * 0.45, size * 1.9, size * 1.9);
+  g.fillStyle = 'rgba(0,0,0,.32)';
+  g.beginPath();
+  g.ellipse(x + size / 2, y + size + 6, size * 0.36, size * 0.10, 0, 0, Math.PI * 2);
+  g.fill();
+  g.drawImage(heroSprite(id, 0), x, y, size, size);
+  return hero;
+}
+
+/* 结算长图：模式 / 分数 / 四项数据 / 出战英雄 / 本局成就 */
+function makeRunPoster(r) {
+  const PW = 720, PH = 1120;
+  const { c, g } = shCanvas(PW, PH);
+  const cx = PW / 2;
+  shText(g, 'P I X E L   D A S H', cx, 62, 26, '#b08d68', 'center', 700);
+  shText(g, r.win ? 'R U N   C L E A R' : r.quit ? 'R U N   E N D E D' : 'R U N   O V E R',
+    cx, 104, 18, '#8a6a4c', 'center', 700);
+
+  let title = '本局结束';
+  if (!r.quit) {
+    if (r.mode === 'tutorial') title = r.win ? '教程完成' : '教程中断';
+    else if (r.stage) title = (r.win ? '关卡通过 · ' : '闯关失败 · ') + r.stageName;
+    else title = '第 ' + r.wave + ' 波倒下';
+  }
+  shText(g, title, cx, 148, 50, r.win ? '#ffe066' : r.quit ? '#e6d9c2' : '#ff9b86', 'center', 800);
+
+  const tag = r.modeName + (r.stage ? ' · 第 ' + r.stage + ' 关' : r.wave ? ' · 第 ' + r.wave + ' 波' : '');
+  shPill(g, tag, cx, 222, 20, r.modeCol || '#ffd76a');
+
+  // 分数块
+  g.fillStyle = 'rgba(0,0,0,.30)';
+  g.fillRect(60, 292, PW - 120, 196);
+  g.strokeStyle = 'rgba(255,215,106,.4)';
+  g.lineWidth = 2;
+  g.strokeRect(60, 292, PW - 120, 196);
+  shText(g, 'S C O R E', cx, 316, 18, '#8a6a4c', 'center', 700);
+  shText(g, String(r.score), cx, 344, 92, '#ffd76a', 'center', 800);
+  if (r.newBest) shText(g, '★  NEW  RECORD', cx, 450, 18, '#ffb86b', 'center', 800);
+  else shText(g, '历史最佳 ' + r.best, cx, 450, 18, '#a8895f', 'center', 700);
+
+  // 数据格
+  const gw = (PW - 120 - 20) / 2;
+  shStat(g, '存活', fmt(r.time), 60, 520, gw);
+  shStat(g, '击杀', r.kills, 80 + gw, 520, gw, '#ff9b86');
+  shStat(g, '等级', 'Lv.' + r.level, 60, 610, gw, '#ffd76a');
+  shStat(g, '本局金币', '+' + r.coins, 80 + gw, 610, gw, '#ffcf5c');
+
+  // 出战英雄
+  g.fillStyle = 'rgba(0,0,0,.26)';
+  g.fillRect(60, 706, PW - 120, 200);
+  g.strokeStyle = '#6f4a29';
+  g.lineWidth = 2;
+  g.strokeRect(60, 706, PW - 120, 200);
+  const hero = shHero(g, r.hero, 96, 734, 144);
+  shText(g, hero.name, 280, 750, 40, '#f4e3c6', 'left', 800);
+  shText(g, hero.tag || '冒险者', 280, 804, 20, '#c9a97f', 'left', 700);
+  shText(g, '出战小英雄', 280, 838, 18, '#8a6a4c', 'left', 700);
+
+  // 本局解锁的成就
+  shText(g, '本局解锁成就', 60, 932, 18, '#8a6a4c', 'left', 700);
+  if (r.ach && r.ach.length) {
+    let ax = 60, ay = 964;
+    for (const n of r.ach.slice(0, 8)) {
+      g.font = '700 20px ' + SH_FONT;
+      const w = g.measureText(n).width + 34;
+      if (ax + w > PW - 60) { ax = 60; ay += 46; if (ay > 1004) break; }
+      g.fillStyle = 'rgba(255,215,106,.14)';
+      g.strokeStyle = 'rgba(255,215,106,.55)';
+      g.lineWidth = 2;
+      g.beginPath();
+      if (g.roundRect) g.roundRect(ax, ay, w, 38, 19); else g.rect(ax, ay, w, 38);
+      g.fill(); g.stroke();
+      shText(g, n, ax + w / 2, ay + 9, 20, '#ffe0a0', 'center', 700);
+      ax += w + 12;
+    }
+  } else {
+    shText(g, '本局没有新成就', 60, 968, 20, '#7a5c3c', 'left', 700);
+  }
+
+  // 页脚
+  shText(g, achDate(r.date) + '　·　' + SH_URL, cx, 1034, 16, '#7a5c3c', 'center', 600);
+  shText(g, '冲刺，是唯一的技能', cx, 1064, 16, '#8a6a4c', 'center', 600);
+  return c;
+}
+
+/* 成就分享卡：印章 / 名称 / 条件 / 解锁时间 / 收集进度 */
+function makeAchCard(a, ts) {
+  const PW = 720, PH = 840;
+  const { c, g } = shCanvas(PW, PH);
+  const cx = PW / 2;
+  const pos = a.kind === 'pos';
+  const col = pos ? '#ffd76a' : '#ff9b86';
+  shText(g, 'A C H I E V E M E N T', cx, 58, 22, '#b08d68', 'center', 700);
+
+  // 印章
+  const cy = 152;
+  const rg = g.createRadialGradient(cx - 10, cy - 10, 4, cx, cy, 64);
+  rg.addColorStop(0, pos ? '#ffe9a8' : '#ffb28f');
+  rg.addColorStop(1, pos ? '#a76a1c' : '#7d2a22');
+  g.fillStyle = rg;
+  g.beginPath(); g.arc(cx, cy, 58, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#2a1a10';
+  g.lineWidth = 4;
+  g.beginPath(); g.arc(cx, cy, 58, 0, Math.PI * 2); g.stroke();
+  shText(g, pos ? '正' : '整', cx, cy - 32, 60, '#2a1408', 'center', 800);
+
+  shText(g, a.name, cx, 238, 58, col, 'center', 800);
+  shText(g, pos ? '正面 · 荣耀' : '整活 · 黑历史', cx, 310, 20, '#a8895f', 'center', 700);
+
+  // 条件
+  g.fillStyle = 'rgba(0,0,0,.28)';
+  g.fillRect(60, 356, PW - 120, 148);
+  g.strokeStyle = '#6f4a29';
+  g.lineWidth = 2;
+  g.strokeRect(60, 356, PW - 120, 148);
+  shWrap(g, a.desc, 92, 386, PW - 184, 26, '#e8d4b0', 40);
+
+  // 解锁时间 + 收集进度
+  shText(g, '解锁于 ' + achDate(ts), 60, 538, 20, '#c9a97f', 'left', 700);
+  const n = ACHS.filter((x) => achUnlocked[x.id]).length;
+  shText(g, '已解锁 ' + n + ' / ' + ACHS.length, PW - 60, 538, 20, '#c9a97f', 'right', 700);
+
+  // 进度条
+  g.fillStyle = 'rgba(0,0,0,.4)';
+  g.fillRect(60, 574, PW - 120, 14);
+  const grad = g.createLinearGradient(60, 0, PW - 60, 0);
+  grad.addColorStop(0, '#c8842e');
+  grad.addColorStop(1, '#ffd76a');
+  g.fillStyle = grad;
+  g.fillRect(60, 574, (PW - 120) * (n / ACHS.length), 14);
+  g.strokeStyle = 'rgba(255,215,106,.4)';
+  g.lineWidth = 2;
+  g.strokeRect(60, 574, PW - 120, 14);
+
+  // 出战英雄
+  const hero = shHero(g, heroKey, 86, 626, 120);
+  shText(g, '出战 · ' + hero.name, 252, 654, 26, '#f4e3c6', 'left', 700);
+  shText(g, pos ? '荣耀证书' : '黑历史记录', 252, 700, 18, '#8a6a4c', 'left', 700);
+
+  // 页脚
+  shText(g, SH_URL, cx, 786, 16, '#7a5c3c', 'center', 600);
+  return c;
+}
+
+function shSave(c, name) {
+  let url;
+  try { url = c.toDataURL('image/png'); } catch (e) { return; }
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast('已生成图片，可保存或分享');
+  } catch (e) {
+    window.open(url, '_blank');
+  }
+}
+
+function shareRunPoster() {
+  if (!lastRunInfo) return;
+  shSave(makeRunPoster(lastRunInfo), 'pixel-dash-run-' + lastRunInfo.score + '.png');
+}
+
+function shareAchCard(id) {
+  const a = ACHS.find((x) => x.id === id);
+  if (!a) return;
+  const ts = achUnlocked[id];
+  if (!ts) { toast('该成就尚未解锁', true); return; }
+  shSave(makeAchCard(a, ts), 'pixel-dash-ach-' + a.id + '.png');
 }
 

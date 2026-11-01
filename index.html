@@ -927,6 +927,9 @@
   .adate{font-size:clamp(8px,1.1vmin,12px);color:#b08d68;letter-spacing:.06em;font-family:var(--mono);margin-top:auto}
   .acard.locked{opacity:.62;border-style:dashed}
   .acard.locked .adesc{color:#9a8264}
+  .acard.unlocked{cursor:pointer;transition:transform .12s,box-shadow .12s}
+  .acard.unlocked:hover{transform:translateY(-2px)}
+  .acard.unlocked:active{transform:translateY(0)}
   .acard.pos.unlocked{
     border-color:rgba(255,214,120,.6);
     background:linear-gradient(180deg,rgba(255,200,90,.18),#2b1b0e);
@@ -1237,6 +1240,7 @@
       <div class="rbtns">
         <button class="rbtn primary" id="retryBtn">再来一局<span class="key">空格</span></button>
         <button class="rbtn ghost hidden" id="nextBtn">下一关</button>
+        <button class="rbtn ghost" id="shareEndBtn">保存战绩长图</button>
         <button class="rbtn ghost" id="endMenuBtn">返回主界面</button>
       </div>
     </div>
@@ -1283,6 +1287,7 @@
       <h1 class="bhead">成 就 殿 堂</h1>
       <div class="agrid" id="achGrid"></div>
       <div class="anote" id="achNote"></div>
+      <div class="bhint">点击已解锁的成就卡，即可生成专属分享图（PNG）</div>
       <button class="rbtn primary" id="achBackBtn">返回（Esc）</button>
     </div>
   </div>
