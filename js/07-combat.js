@@ -863,6 +863,7 @@ function updateOrbs(dt) {
   const p = player;
   orbChainT -= dt;
   for (const o of orbs) {
+    if (o.dead) continue;   // 已吃掉但没来得及清理的球不能再给经验
     const dx = p.x - o.x, dy = p.y - o.y;
     const d = Math.hypot(dx, dy) || 1;
     // 全图缓慢吸附，靠近后加速：冲刺会把玩家带离击杀点，经验球不该被落下
@@ -875,7 +876,11 @@ function updateOrbs(dt) {
       o.dead = true;
       if (achRun) { achRun.orbs += 1; checkAch(); }
       gainXP(o.v);
-      if (state !== 'playing') return;
+      if (state !== 'playing') {
+        // 升级界面会中断本帧更新：先把已吃掉的球清掉，避免下次回到战斗时重复给经验
+        orbs = orbs.filter((x) => !x.dead);
+        return;
+      }
       // 连吃多颗时音高递进，反馈更“顺”
       orbChain = orbChainT > 0 ? orbChain + 1 : 1;
       orbChainT = 0.85;
