@@ -96,7 +96,10 @@ function setMuted(v) {
 }
 /* 场景专属 BGM：键是地图 id。只有配了曲目的场景才放背景音乐，其余场景保持安静 */
 const BGM_TRACKS = {
-  neon: 'bgm.mp3',
+  plain: 'grassland.mp3',   // 草原 / 苔原
+  snow: 'ice.mp3',          // 冰天雪地
+  lava: 'volcano.mp3',      // 熔岩
+  neon: 'bgm.mp3',          // 霓虹
 };
 let bgmTrack = '';   // 当前已挂载的曲目，换图时才重新 load
 function sceneBgmTrack() { return (map && BGM_TRACKS[map.id]) || ''; }
