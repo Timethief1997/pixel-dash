@@ -84,10 +84,6 @@ function heroCardsHtml() {
         '</div>' +
         '<div class="scDesc">' + h.desc + '</div>' +
         heroStatLine(h) +
-        (byMedal
-          ? '<div class="scStat" style="grid-template-columns:1fr">兑换价 ' + ico('medal') + '<b>' + cost + '</b> · ' +
-              (owned ? '已兑换 1/1' : '库存 1/1') + '</div>'
-          : '') +
         '<div class="scBtn">' + btn + '</div>' +
       '</div>'
     );
