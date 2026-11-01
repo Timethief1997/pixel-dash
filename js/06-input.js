@@ -10,6 +10,7 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   keys[k] = true;
 
+  if (k === 'escape' && !$('#modeScreen').classList.contains('hidden')) { closeModeScreen(); return; }
   if (k === 'escape' && !$('#codexScreen').classList.contains('hidden')) { closeCodex(); return; }
   if (k === 'escape' && !$('#achScreen').classList.contains('hidden')) { closeAch(); return; }
   if (k === 'escape' && !$('#historyScreen').classList.contains('hidden')) { closeHistory(); return; }
@@ -18,7 +19,11 @@ window.addEventListener('keydown', (e) => {
   if (k === 'escape' && paused) { setPaused(false); return; }
 
   if (k === 'm') { setMuted(!muted); return; }
-  if (state === 'menu' && (k === ' ' || k === 'enter')) { startGame(); return; }
+  if (state === 'menu' && (k === ' ' || k === 'enter')) {
+    /* 模式界面已打开时，空格交给界面上的卡片选择，不再直接开局 */
+    if ($('#modeScreen').classList.contains('hidden')) openModeScreen();
+    return;
+  }
   if ((state === 'dead' || state === 'won') && (k === ' ' || k === 'enter')) { startGame(); return; }
   if ((state === 'dead' || state === 'won') && k === 'escape') { goMenu(); return; }
   if (state === 'playing' && k === ' ') { tryDash(); return; }
@@ -59,7 +64,7 @@ $('#iosTipClose').addEventListener('click', () => $('#iosTip').classList.add('hi
 $('#iosTip').addEventListener('click', (e) => {
   if (e.target === $('#iosTip')) $('#iosTip').classList.add('hidden');
 });
-$('#tutSkip').addEventListener('click', endTutorial);
+$('#tutSkip').addEventListener('click', skipTutorial);
 
 /* ---- 设置：音效 / BGM ---- */
 const setBtn = $('#setBtn');
@@ -200,12 +205,17 @@ function hudSync() {
   if (s !== hudScoreVal) { hudScoreVal = s; scoreValEl.textContent = s; }
   if (kills !== hudKillsVal) { hudKillsVal = kills; hudKillsEl.textContent = kills; }
   if (p.level !== hudLvVal) { hudLvVal = p.level; lvBadgeEl.textContent = 'Lv.' + p.level; }
-  if (diffTagEl.dataset.diff !== diffKey) {
-    diffTagEl.dataset.diff = diffKey;
-    diffTagEl.textContent = diff.name;
+  /* 模式标签：教程 / 第 N 关 / 第 N 波 */
+  const mc = MODES[modeKey] || MODES.endless;
+  const stageTxt = campaign && curLevel ? '第 ' + curLevel.id + ' 关'
+    : modeKey === 'endless' ? '第 ' + wave + ' 波' : mc.name;
+  const modeSig = modeKey + '|' + (curLevel ? curLevel.id : 0) + '|' + wave;
+  if (diffTagEl.dataset.sig !== modeSig) {
+    diffTagEl.dataset.sig = modeSig;
+    diffTagEl.textContent = modeKey === 'tutorial' ? mc.name : mc.short + ' · ' + stageTxt;
     diffTagEl.style.color = '#fff6e2';
-    diffTagEl.style.background = diff.col + '3d';
-    diffTagEl.style.borderColor = diff.col + '99';
+    diffTagEl.style.background = mc.col + '3d';
+    diffTagEl.style.borderColor = mc.col + '99';
   }
   xpFillEl.style.width = (clamp(p.xp / p.xpNext, 0, 1) * 100) + '%';
   const hintA = kills === 0 && time < 8 ? (time < 6 ? 1 : Math.max(0, 1 - (time - 6) / 2)) : 0;
@@ -338,8 +348,10 @@ $('#dashBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); tryDa
 const touchMode = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (touchMode) document.body.classList.add('touch');
 
-$('#startBtn').addEventListener('click', startGame);
+$('#startBtn').addEventListener('click', () => openModeScreen());
 $('#retryBtn').addEventListener('click', startGame);
+/* 闯关通关后直接进下一关 */
+$('#nextBtn').addEventListener('click', () => startMode('campaign', levelIndex + 1));
 $('#endMenuBtn').addEventListener('click', goMenu);
 $('#histBtn').addEventListener('click', openHistory);
 $('#codexBtn').addEventListener('click', openCodex);
@@ -347,25 +359,10 @@ $('#achBtn').addEventListener('click', openAch);
 $('#codexBackBtn').addEventListener('click', closeCodex);
 $('#achBackBtn').addEventListener('click', closeAch);
 $('#histBackBtn').addEventListener('click', closeHistory);
-
-/* 难度选择 */
-for (const b of document.querySelectorAll('.diffbtn')) {
-  b.addEventListener('click', () => applyDiff(b.dataset.d));
-}
-let savedDiff = 'normal';
-try { savedDiff = localStorage.getItem(DKEY) || 'normal'; } catch (e) {}
-applyDiff(savedDiff);
 $('#histClearBtn').addEventListener('click', () => {
   storeRecords([]);
   renderHistory();
   refreshBestLine();
-});
-$('#endlessBtn').addEventListener('click', () => {
-  endless = true;
-  nextEvent = time + 20;   // 进无尽先给 20 秒缓冲，别一进去就撞事件
-  state = 'playing';
-  layers.end.classList.add('hidden');
-  lastTs = performance.now();
 });
 /* 暂停菜单：结束本局（直接结算）/ 返回主菜单 */
 $('#giveUpBtn').addEventListener('click', () => {

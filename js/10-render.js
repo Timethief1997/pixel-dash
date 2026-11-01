@@ -544,7 +544,7 @@ function render() {
   drawBackdrop();
 
   // 地图环境：雪原风雪与冰面 / 熔岩热浪
-  if (mapKey === 'snow') {
+  if (map.id === 'snow') {
     ctx.fillStyle = 'rgba(190,226,255,.10)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#eaf6ff';
@@ -555,7 +555,7 @@ function render() {
       ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
     }
     ctx.globalAlpha = 1;
-  } else if (mapKey === 'lava') {
+  } else if (map.id === 'lava') {
     ctx.fillStyle = 'rgba(255,94,32,.07)';
     ctx.fillRect(0, 0, W, H);
   }
@@ -581,11 +581,11 @@ function render() {
     ctx.beginPath();
     ctx.ellipse(r.x + 1, r.y + 3, r.r, r.r * 0.55, 0, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = mapKey === 'snow' ? '#8fa3b8' : '#4a3a3a';
+    ctx.fillStyle = map.id === 'snow' ? '#8fa3b8' : '#4a3a3a';
     ctx.beginPath();
     ctx.arc(r.x, r.y, r.r, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = mapKey === 'snow' ? '#c6d6e4' : '#6b4a3a';
+    ctx.fillStyle = map.id === 'snow' ? '#c6d6e4' : '#6b4a3a';
     ctx.fillRect(Math.round(r.x - r.r / 2), Math.round(r.y - r.r / 2), Math.max(2, Math.round(r.r)), 2);
   }
 

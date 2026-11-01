@@ -91,22 +91,20 @@ function chooseIndex(i) {
   if (!u) return;
   player.upg[u.id] = (player.upg[u.id] || 0) + 1;
   u.apply(player.stats, player);
-  player.maxHp = 8 + player.stats.maxHpBonus;
+  player.maxHp = player.heroHp + player.stats.maxHpBonus;
   player.hp = Math.min(player.hp, player.maxHp);
 
   layers.upgrade.classList.add('hidden');
   pendingLevels -= 1;
   blip(520, 0.08, 'triangle', 0.05, 300);
-  // 教程最后一步：选一张卡即完成
-  if (tutorial && tutorial.active && tutorial.step === 3) {
-    tutAdvance();
-  }
   if (pendingLevels > 0) {
     openUpgrade();
   } else {
     state = 'playing';
     // 回到战斗先给一段无敌，避免选牌时被贴脸
     player.invuln = Math.max(player.invuln || 0, 1.8);
+    // 教程最后一步：选一张卡即完成（必须回到 playing 才能结算）
+    if (tutorial && tutorial.active && tutorial.step === 3) tutAdvance();
   }
 }
 

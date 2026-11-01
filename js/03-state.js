@@ -31,30 +31,64 @@ let meteorT = 0;
 
 const keys = {};
 
-/* ---------- 难度 ---------- */
-const DKEY = 'pixelDash.diff.v1';
-const DIFFS = {
-  casual: { name: '休闲', col: '#7dffb0', hp: 0.82, spd: 0.90, spawn: 1.30, xp: 1.25, hpGrow: 150, invuln: 1.7, score: 0.60 },
-  normal: { name: '标准', col: '#63d9ff', hp: 1.00, spd: 1.00, spawn: 1.00, xp: 1.00, hpGrow: 110, invuln: 1.20, score: 1.00 },
-  hard:   { name: '硬核', col: '#ff9a6b', hp: 1.22, spd: 1.07, spawn: 0.82, xp: 0.88, hpGrow: 85,  invuln: 1.00, score: 1.45 },
+/* ---------- 游戏模式（新手教程 / 闯关 / 无尽） ---------- */
+const MODE_KEY = 'pixelDash.mode.v1';
+const MODES = {
+  tutorial: { id: 'tutorial', name: '新手教程', short: '教程', col: '#ffd76a',
+    desc: '四步操作指引：移动、冲刺、撞碎敌人、选卡升级。' },
+  campaign: { id: 'campaign', name: '闯关模式', short: '闯关', col: '#7dffb0',
+    desc: '一关接一关，每关固定地图与目标；通关解锁下一关。' },
+  endless:  { id: 'endless',  name: '无尽模式', short: '无尽', col: '#ff9a6b',
+    desc: '固定一张地图，坚持越久波次越高，敌人越来越强。' },
 };
-const DIFF_HINT = {
-  casual: '敌人更弱 · 刷怪更慢 · 经验 +25% · 得分 ×0.6',
-  normal: '标准数值 · 得分 ×1.0',
-  hard: '敌人更强更密 · 经验 -12% · 得分 ×1.45',
-};
-let diffKey = 'normal', diff = DIFFS.normal;
-function diffLabel(k) { return DIFFS[k] ? DIFFS[k].name : '—'; }
-function applyDiff(k) {
-  if (!DIFFS[k]) k = 'normal';
-  diffKey = k; diff = DIFFS[k];
-  for (const b of document.querySelectorAll('.diffbtn')) {
-    b.classList.toggle('on', b.dataset && b.dataset.d === k);
-  }
-  const d = $('#diffDesc');
-  if (d) d.textContent = DIFF_HINT[k];
-  try { localStorage.setItem(DKEY, k); } catch (e) {}
+let modeKey = 'endless';
+try {
+  const mk = localStorage.getItem(MODE_KEY);
+  if (mk && MODES[mk]) modeKey = mk;
+} catch (e) {}
+function saveMode(k) {
+  if (!MODES[k]) return;
+  modeKey = k;
+  try { localStorage.setItem(MODE_KEY, k); } catch (e) {}
 }
+function modeName() { return (MODES[modeKey] || MODES.endless).name; }
+
+/* 内部数值不再区分休闲/硬核，全部用同一套基准 */
+const DIFFS = { normal: { name: '标准', col: '#63d9ff', hp: 1.0, spd: 1.0, spawn: 1.0, xp: 1.0, hpGrow: 110, invuln: 1.2, score: 1.0 } };
+let diffKey = 'normal', diff = DIFFS.normal;
+function diffLabel() { return modeName(); }
+
+/* ---------- 闯关关卡（不同地图、不同目标） ---------- */
+const LEVEL_KEY = 'pixelDash.campaign.v1';
+const LEVELS = [
+  { id: 1, name: '苔原 · 起步', map: 'plain', col: '#7dffb0', tag: '生存',
+    goal: 'survive', time: 60, desc: '在苔原撑满 60 秒，熟悉移动和冲刺穿怪。' },
+  { id: 2, name: '雪原 · 冰封', map: 'snow', col: '#8fd8ff', tag: '击杀',
+    goal: 'kills', kills: 60, time: 90, desc: '冰面打滑、岩石挡路：90 秒内击杀 60 只敌人。' },
+  { id: 3, name: '熔岩 · 陨落', map: 'lava', col: '#ff8a4a', tag: '生存',
+    goal: 'survive', time: 75, desc: '陨石不断坠落，躲开熔岩撑满 75 秒。' },
+  { id: 4, name: '雪原 · 兽潮', map: 'snow', col: '#8fd8ff', tag: 'BOSS',
+    goal: 'boss', bosses: 1, bossAt: 20, time: 120, desc: '20 秒后 BOSS 登场，击败它才能过关。' },
+  { id: 5, name: '熔岩 · 终焉', map: 'lava', col: '#ff8a4a', tag: 'BOSS',
+    goal: 'boss', bosses: 2, bossAt: 15, bossGap: 55, time: 160, desc: '熔岩上的终局：连续击败 2 只 BOSS。' },
+];
+function campaignProgress() {
+  try {
+    const n = Math.floor(Number(localStorage.getItem(LEVEL_KEY) || 1));
+    /* 允许存到 length+1，用来表示「全部通关」 */
+    return clamp(n || 1, 1, LEVELS.length + 1);
+  } catch (e) { return 1; }
+}
+function levelUnlocked(id) { return id <= campaignProgress(); }
+function unlockLevel(id) {
+  const next = clamp(Math.max(campaignProgress(), id + 1), 1, LEVELS.length + 1);
+  try { localStorage.setItem(LEVEL_KEY, String(next)); } catch (e) {}
+}
+let levelIndex = 0;        // 当前关卡索引（0 基）
+let campaign = false;      // 当前局是否为闯关
+let curLevel = null;       // 当前关卡配置
+let wave = 1, waveT = 0;   // 无尽波次
+let bossKills = 0;         // 本局 BOSS 击杀数
 
 /* ---------- 小英雄（商店解锁，出战角色） ---------- */
 const HERO_KEY = 'pixelDash.hero.v1';

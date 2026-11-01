@@ -13,7 +13,7 @@ function refreshLoadout() {
   const h = currentHero();
   el.innerHTML =
     '出战 <b style="color:' + h.col + '">' + h.name + '</b>' +
-    ' · 地图 <b>' + map.name + '</b>' +
+    ' · 无尽地图 <b>' + map.name + '</b>' +
     ' · 金币 <b>' + loadCoins() + '</b>';
 }
 
@@ -86,7 +86,8 @@ function renderShop() {
   if (!grid) return;
   const cv = $('#shopCoinsVal');
   if (cv) cv.textContent = loadCoins();
-  for (const b of document.querySelectorAll('.stab')) {
+  /* 只处理商店自己的页签：模式界面的页签也复用了 .stab 样式 */
+  for (const b of document.querySelectorAll('#shopScreen .stab')) {
     b.classList.toggle('on', (b.dataset && b.dataset.tab) === shopTab);
   }
   grid.className = shopTab === 'hero' ? 'shopGrid' : 'mapGrid';
@@ -112,7 +113,7 @@ function closeShop() {
 $('#shopBtn').addEventListener('click', openShop);
 $('#shopClose').addEventListener('click', closeShop);
 
-for (const b of document.querySelectorAll('.stab')) {
+for (const b of document.querySelectorAll('#shopScreen .stab')) {
   b.addEventListener('click', () => {
     if (!b.dataset || !b.dataset.tab) return;
     shopTab = b.dataset.tab;

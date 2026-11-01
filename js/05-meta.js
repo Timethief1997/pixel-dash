@@ -71,10 +71,21 @@ function fmtDate(ts) {
   const d = new Date(ts), p = (n) => String(n).padStart(2, '0');
   return p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
+function recordModeName(r) {
+  const m = r && r.mode && MODES[r.mode];
+  if (!m) return '旧版记录';
+  if (r.stage) return m.name + ' · 第' + r.stage + '关';
+  if (r.mode === 'endless' && r.wave) return m.name + ' · 第' + r.wave + '波';
+  return m.name;
+}
+function recordModeCol(r) {
+  const m = r && r.mode && MODES[r.mode];
+  return m ? m.col : '#a9bdd4';
+}
 function refreshBestLine() {
   const b = bestRecord();
   $('#bestLine').innerHTML = b
-    ? '最佳 <b>' + b.score + '</b> 分（' + diffLabel(b.diff) + '）　·　存活 ' + fmt(b.time) + '　·　击杀 ' + b.kills
+    ? '最佳 <b>' + b.score + '</b> 分（' + recordModeName(b) + '）　·　存活 ' + fmt(b.time) + '　·　击杀 ' + b.kills
     : '暂无记录 —— 第一局就是你的最高分';
 }
 function renderHistory() {
@@ -85,7 +96,7 @@ function renderHistory() {
     return;
   }
   box.innerHTML =
-    '<div class="hhead"><div>#</div><div>分数</div><div>存活</div><div>击杀</div><div>等级</div><div>难度</div><div>时间</div></div>' +
+    '<div class="hhead"><div>#</div><div>分数</div><div>存活</div><div>击杀</div><div>等级</div><div>模式</div><div>时间</div></div>' +
     list.map((r, i) =>
     '<div class="hrow' + (i < 3 ? ' top' + (i + 1) : '') + '">' +
       '<div class="rk">' + (i + 1) + '</div>' +
@@ -93,7 +104,7 @@ function renderHistory() {
       '<div class="tm">' + fmt(r.time) + '</div>' +
       '<div>' + r.kills + ' 杀</div>' +
       '<div>LV.' + r.level + '</div>' +
-      '<div class="dfg" style="color:' + (DIFFS[r.diff] ? DIFFS[r.diff].col : '#5f6f92') + '">' + diffLabel(r.diff) + '</div>' +
+      '<div class="dfg" style="color:' + recordModeCol(r) + '">' + recordModeName(r) + '</div>' +
       '<div class="dt">' + (r.won ? '✓ ' : '') + fmtDate(r.date) + '</div>' +
     '</div>').join('');
 }
@@ -238,7 +249,7 @@ const ACHS = [
   { id: 'dragon',  name: '屠龙',       kind: 'pos', desc: '累计击杀 5 只 BOSS',                  cond: (r, s) => s.boss >= 5 },
   { id: 'crush',   name: '碾碎精英',   kind: 'pos', desc: '单局击杀 8 只精英（词缀怪）',          cond: (r) => r.elites >= 8 },
   { id: 'storm',   name: '腥风血雨',   kind: 'pos', desc: '3 秒内连续击杀 12 个敌人',             cond: (r) => r.killTimes.length >= 12 },
-  { id: 'legend',  name: '五分钟神话', kind: 'pos', desc: '撑过 5 分钟，通关本局',                cond: (r, s, c) => !!c.win },
+  { id: 'legend',  name: '破关者',     kind: 'pos', desc: '通关任意一个闯关关卡',                cond: (r, s, c) => !!c.win && c.mode === 'campaign' },
   { id: 'slayer',  name: '三千暴徒',   kind: 'pos', desc: '单局得分达到 3000',                   cond: () => calcScore() >= 3000 },
 
   { id: 'coward',  name: '怯战蜥蜴',   kind: 'neg', desc: '连续 30 秒没有击杀任何敌人',           cond: (r) => time - r.lastKill >= 30 },
@@ -368,23 +379,42 @@ function endGame(win, quit) {
   const score = calcScore();
   const prev = bestRecord();
   const newBest = !prev || score > prev.score;
-  pushRecord({
-    score, time: Math.round(time), kills,
-    level: player.level, won: win, date: Date.now(), diff: diffKey,
-  });
+  if (modeKey !== 'tutorial') {
+    pushRecord({
+      score, time: Math.round(time), kills,
+      level: player.level, won: win, date: Date.now(),
+      mode: modeKey, stage: campaign && curLevel ? curLevel.id : 0,
+      stageName: campaign && curLevel ? curLevel.name : '',
+      wave: endless ? wave : 0,
+    });
+  }
   const best = bestRecord();
   /* 结算时判定「死亡/通关」类成就，解锁结果直接写进结算面板 */
-  const newAch = checkAch(true, { ending: true, dead: !win && !quit, win, time, quit });
+  const newAch = checkAch(true, {
+    ending: true, dead: !win && !quit, win, time, quit,
+    mode: modeKey, stage: campaign && curLevel ? curLevel.id : 0,
+  });
 
-  $('#endTitle').textContent = quit ? '本局结束' : win ? '撑过了 5 分钟' : '你被淹没了';
+  /* 闯关通关：解锁下一关 */
+  if (campaign && win && curLevel) unlockLevel(curLevel.id);
+
+  const mc = MODES[modeKey] || MODES.endless;
+  let title, kicker;
+  if (quit) { title = '本局结束'; kicker = 'R U N   E N D E D'; }
+  else if (modeKey === 'tutorial') { title = win ? '教程完成' : '教程中断'; kicker = 'T U T O R I A L'; }
+  else if (campaign) {
+    title = win ? '关卡通过 · ' + curLevel.name : '闯关失败 · ' + curLevel.name;
+    kicker = win ? 'S T A G E   C L E A R' : 'S T A G E   F A I L E D';
+  } else { title = '你在第 ' + wave + ' 波倒下'; kicker = 'R U N   O V E R'; }
+
+  $('#endTitle').textContent = title;
   $('#endTitle').style.color = quit ? '#e6d9c2' : win ? '#ffe066' : '#ff9b86';
-  $('#endKicker').textContent = quit ? 'R U N   E N D E D' : 'R U N   O V E R';
+  $('#endKicker').textContent = kicker;
   const cell = (label, val, cls) =>
     '<div class="rcell"><span class="rlabel">' + label + '</span>' +
     '<b class="rval' + (cls ? ' ' + cls : '') + '">' + val + '</b></div>';
   $('#endStats').innerHTML =
-    '<div class="rcell"><span class="rlabel">得分</span><b class="rval gold big" title="已计入难度倍率 ×' +
-      diff.score.toFixed(2) + '">' + score + '</b></div>' +
+    '<div class="rcell"><span class="rlabel">得分</span><b class="rval gold big">' + score + '</b></div>' +
     cell('存活', fmt(time), '') +
     cell('击杀', kills, 'hot') +
     cell('等级', 'Lv.' + player.level, 'gold') +
@@ -392,13 +422,26 @@ function endGame(win, quit) {
   $('#endFlags').innerHTML =
     (newBest ? '<span class="rflag">★ 新纪录</span>' : '') +
     (newAch.length ? '<span class="rflag ach">✦ 新成就 · ' + newAch.join(' · ') + '</span>' : '') +
-    '<span class="rmeta">难度 <span class="rdiff" style="color:' + diff.col + ';border-color:' + diff.col +
-      '99;background:' + diff.col + '22">' + diff.name + '</span>' +
-      '　·　历史最佳 ' + best.score + ' 分</span>';
+    '<span class="rmeta">模式 <span class="rdiff" style="color:' + mc.col + ';border-color:' + mc.col +
+      '99;background:' + mc.col + '22">' + mc.name +
+      (campaign && curLevel ? ' · 第' + curLevel.id + '关' : endless ? ' · 第' + wave + '波' : '') +
+      '</span>　·　历史最佳 ' + best.score + ' 分</span>';
   // 结算与 HUD 显示同一个最终分数，避免玩家对照时看到尾数差
   hudScoreVal = score;
   scoreValEl.textContent = score;
-  $('#endlessBtn').classList.toggle('hidden', !win);
+
+  const nextBtn = $('#nextBtn');
+  if (nextBtn) {
+    const hasNext = campaign && win && levelIndex + 1 < LEVELS.length;
+    nextBtn.classList.toggle('hidden', !hasNext);
+    if (hasNext) nextBtn.textContent = '下一关 · ' + LEVELS[levelIndex + 1].name;
+  }
+  const retryBtn = $('#retryBtn');
+  if (retryBtn) {
+    const label = campaign ? '重试本关' : modeKey === 'tutorial' ? '再练一次' : '再来一局';
+    retryBtn.innerHTML = label + '<span class="key">空格</span>';
+  }
+
   const endEl = $('#endScreen');
   endEl.classList.toggle('win', win);
   if (win) { spawnConfetti(); winJingle(); }

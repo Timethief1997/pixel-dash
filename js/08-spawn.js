@@ -38,31 +38,85 @@ function updateMarks(dt) {
   }
 }
 
-function updateSpawn(dt) {
-  if (!endless && time >= WIN_TIME) return;
+/* 教程模式：只在玩家附近刷最基础的追兵，不刷精英/BOSS */
+function updateTutorialSpawn(dt) {
+  spawnTimer -= dt;
+  if (spawnTimer > 0) return;
+  spawnTimer = 1.3;
+  if (!player || enemies.length >= 8) return;
+  const step = tutorial && tutorial.active ? tutorial.step : 0;
+  const a = rand(0, TAU);
+  const rr = step >= 2 ? rand(36, 58) : rand(60, 85);
+  spawnEnemy('chaser', clamp(player.x + Math.cos(a) * rr, 6, W - 6), clamp(player.y + Math.sin(a) * rr, 6, H - 6), true);
+}
 
-  const tier = threatTier();
-  if (tier > lastTier) {
-    lastTier = tier;
-    toast('威胁等级 ' + tier + ' · 敌人强化', true);
-    blip(70, 0.24, 'sawtooth', 0.06, -25);
+function updateSpawn(dt) {
+  if (modeKey === 'tutorial') { updateTutorialSpawn(dt); return; }
+
+  /* 无尽：每 30 秒一波，波次越高刷得越快 */
+  if (endless) {
+    const w = Math.floor(time / 30) + 1;
+    if (w !== wave) {
+      wave = w;
+      toast('第 ' + wave + ' 波 · 敌人强化', true);
+      shake = Math.max(shake, 3);
+      blip(70, 0.22, 'sawtooth', 0.055, -30);
+    }
+    const tier = threatTier();
+    if (tier > lastTier) {
+      lastTier = tier;
+      toast('威胁等级 ' + tier + ' · 敌人强化', true);
+      blip(70, 0.24, 'sawtooth', 0.06, -25);
+    }
   }
 
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
-    spawnTimer = Math.max(0.34, 1.9 - time * 0.011) * diff.spawn;
-    let count = Math.min(6, 1 + Math.floor(time / 75));
-    if (enemies.length > 150) count = 0;
-    for (let i = 0; i < count; i++) spawnAtEdge(pickType());
+    if (campaign) {
+      // 闯关节奏更稳：目标优先于淹没感
+      spawnTimer = Math.max(0.55, 1.15 - time * 0.006) * diff.spawn;
+      let n = Math.min(4, 1 + Math.floor(time / 30));
+      if (enemies.length > 120) n = 0;
+      for (let i = 0; i < n; i++) spawnAtEdge(pickType());
+    } else {
+      spawnTimer = Math.max(0.34, 1.9 - time * 0.011) * Math.max(0.8, 1 - (wave - 1) * 0.04) * diff.spawn;
+      let count = Math.min(6, 1 + Math.floor(time / 75));
+      if (enemies.length > 150) count = 0;
+      for (let i = 0; i < count; i++) spawnAtEdge(pickType());
+    }
   }
 
   if (time >= nextBoss) {
-    nextBoss += 90;
-    bossGen += 1;
-    spawnAtEdge('boss');
-    shake = Math.max(shake, 5);
-    toast('BOSS · ' + bossName(bossGen), true);
-    blip(110, 0.35, 'sawtooth', 0.07, -60);
+    if (endless) {
+      nextBoss += 90;
+      bossGen += 1;
+      spawnAtEdge('boss');
+      shake = Math.max(shake, 5);
+      toast('BOSS · ' + bossName(bossGen), true);
+      blip(110, 0.35, 'sawtooth', 0.07, -60);
+    } else if (campaign && curLevel && curLevel.goal === 'boss' && bossGen < curLevel.bosses) {
+      bossGen += 1;
+      spawnAtEdge('boss');
+      shake = Math.max(shake, 6);
+      toast('关卡 BOSS · ' + bossName(bossGen), true);
+      blip(110, 0.35, 'sawtooth', 0.07, -60);
+      nextBoss = bossGen >= curLevel.bosses ? Infinity : time + (curLevel.bossGap || 60);
+    } else {
+      nextBoss = Infinity;
+    }
+  }
+}
+
+/* 闯关目标判定：击杀数 / 生存时间 / BOSS 数，超时算失败 */
+function checkCampaign() {
+  if (!campaign || !curLevel) return;
+  const lv = curLevel;
+  if (state !== 'playing') return;
+  if (lv.goal === 'kills' && kills >= lv.kills) { endGame(true); return; }
+  if (lv.goal === 'boss' && bossKills >= lv.bosses) { endGame(true); return; }
+  if (time >= lv.time) {
+    if (lv.goal === 'survive') endGame(true);
+    else endGame(false);
   }
 }
 
@@ -133,7 +187,7 @@ function update(dt) {
   if (hitSnd > 0) hitSnd -= dt;
   if (frenzyT > 0) frenzyT -= dt;
   time += dt;
-  if (!endless && time >= WIN_TIME) { endGame(true); return; }
+  if (campaign) { checkCampaign(); if (state !== 'playing') return; }
   updatePlayer(dt);
   if (state !== 'playing') return;
   achTrack(dt);
@@ -176,6 +230,6 @@ function update(dt) {
 
   enemies = enemies.filter((e) => !e.dead);
 
-  if (!endless && time >= WIN_TIME) endGame(true);
+  if (campaign && state === 'playing') checkCampaign();
 }
 

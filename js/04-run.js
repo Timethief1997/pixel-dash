@@ -7,9 +7,14 @@
 function resetWorld() {
   time = 0; kills = 0; killScore = 0; shake = 0; screenFlash = 0;
   hitStop = 0; hitSnd = 0; orbChain = 0; orbChainT = 0;
-  spawnTimer = 2.0 * diff.spawn; nextBoss = 100; pendingLevels = 0;
+  spawnTimer = 2.0 * diff.spawn; pendingLevels = 0;
   bossGen = 0; lastTier = 0; splitQueue.length = 0;
   coins = 0; nextEvent = 20; frenzyT = 0;
+  wave = 1; waveT = 0; bossKills = 0;
+  /* BOSS 节奏：无尽每 3 波一只；闯关 BOSS 关按关卡配置；教程不出 BOSS */
+  if (modeKey === 'endless') nextBoss = 90;
+  else if (campaign && curLevel && curLevel.goal === 'boss') nextBoss = curLevel.bossAt;
+  else nextBoss = Infinity;
   enemies = []; orbs = []; bullets = []; ebullets = []; drops = [];
   particles = []; trails = []; effects = []; texts = []; marks = []; hazards = [];
   meteors = [];
@@ -19,7 +24,30 @@ function resetWorld() {
   player = makePlayer();
   rerolls = 2 + (player.heroRerolls || 0);   // 每局两次换牌，幸运英雄额外加成
   resetAchRun();
-  tutorial = makeTutorial();
+  tutorial = makeTutorial(modeKey === 'tutorial');
+  spawnTimer = modeKey === 'tutorial' ? 1.0 : 2.0 * diff.spawn;
+}
+
+/* 进入某个模式（闯关时可指定关卡索引） */
+function startMode(k, idx) {
+  if (!MODES[k]) return;
+  saveMode(k);
+  campaign = k === 'campaign';
+  endless = k === 'endless';
+  if (campaign) {
+    const i = clamp(Math.floor(Number(idx) || 0), 0, LEVELS.length - 1);
+    levelIndex = i;
+    curLevel = LEVELS[i];
+    /* 关卡地图只作用于本局，不改动玩家在商店选的无尽地图 */
+    map = MAPS[curLevel.map];
+  } else if (k === 'tutorial') {
+    curLevel = null;
+    map = MAPS.plain;   // 教程固定在苔原，不覆盖玩家的无尽地图
+  } else {
+    curLevel = null;
+    map = MAPS[mapKey]; // 无尽：整局固定玩家在商店选的地图
+  }
+  startGame();
 }
 
 function hideLayers() {
@@ -32,6 +60,8 @@ function hideLayers() {
   $('#codexScreen').classList.add('hidden');
   $('#achScreen').classList.add('hidden');
   $('#shopScreen').classList.add('hidden');
+  const ms = $('#modeScreen');
+  if (ms) ms.classList.add('hidden');
   $('#tutBox').classList.add('hidden');
 }
 
@@ -40,15 +70,15 @@ function hideLayers() {
    ============================================================ */
 const TUT_KEY = 'pixelDash.tut.v1';
 const TUT_STEPS = [
-  '拖动移动：WASD / 方向键，手机用左下摇杆',
-  '按空格 / 冲刺键冲刺 —— 冲刺穿过敌人才有伤害',
-  '用冲刺穿过第一个敌人，把它撞碎',
-  '升级时选一张卡，构筑自己的能力',
+  '移动：按住 WASD / 方向键（手机拖左下摇杆），先走两步',
+  '冲刺：按空格 / 右下冲刺键 —— 冲刺穿过敌人才有伤害',
+  '命中：朝最近的红色敌人冲刺，把它撞碎',
+  '升级：按 1 / 2 / 3 选一张卡，教程就完成了',
 ];
-function makeTutorial() {
+function makeTutorial(force) {
   let seen = false;
   try { seen = localStorage.getItem(TUT_KEY) === '1'; } catch (e) {}
-  return { active: !seen, step: 0, dist: 0, lx: player ? player.x : W / 2, ly: player ? player.y : H / 2 };
+  return { active: !!force || !seen, step: 0, dist: 0, lx: player ? player.x : W / 2, ly: player ? player.y : H / 2 };
 }
 function endTutorial() {
   if (!tutorial) return;
@@ -61,9 +91,20 @@ function tutAdvance() {
   if (!tutorial || !tutorial.active) return;
   tutorial.step += 1;
   tutorial.dist = 0;
-  if (tutorial.step >= TUT_STEPS.length) { endTutorial(); return; }
+  if (tutorial.step >= TUT_STEPS.length) {
+    endTutorial();
+    if (modeKey === 'tutorial' && state === 'playing') endGame(true);
+    return;
+  }
+  // 最后一步需要升级：直接补满经验，保证玩家一定能看到选卡界面
+  if (tutorial.step === 3 && player) gainXP(8);
   renderTut();
   blip(760, 0.06, 'triangle', 0.035, 120);
+}
+/* 教程里的「跳过」：直接结束这局，回主菜单 */
+function skipTutorial() {
+  endTutorial();
+  if (modeKey === 'tutorial' && state === 'playing') goMenu();
 }
 function renderTut() {
   const box = $('#tutBox');
@@ -85,7 +126,6 @@ function updateTutorial(dt) {
 }
 
 function startGame() {
-  endless = false;
   resetWorld();
   hideLayers();
   state = 'playing';
@@ -94,14 +134,19 @@ function startGame() {
   lastTs = performance.now();
   blip(520, 0.08, 'triangle', 0.05, 320);
   if (muted) toast('音效已关闭 · 点右上角齿轮可在设置中开启');
+  if (campaign && curLevel) toast('关卡 ' + curLevel.id + ' · ' + curLevel.name + ' —— ' + curLevel.desc, true);
 }
 
 function goMenu() {
   bankCoins();
   state = 'menu';
   endless = false;
+  campaign = false;
+  curLevel = null;
+  map = MAPS[mapKey];   // 闯关/教程可能临时换过地图，回主界面要还原
   resetWorld();
   hideLayers();
+  $('#modeScreen').classList.add('hidden');
   layers.title.classList.remove('hidden');
   refreshBestLine();
   refreshLoadout();
