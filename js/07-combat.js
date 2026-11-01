@@ -1,0 +1,846 @@
+/* PIXEL DASH · 冲刺 / 状态 / 玩家 / 伤害 / 敌人 / 经验 —— 由 index.html 拆分，按顺序加载 */
+'use strict';
+
+/* ============================================================
+   冲刺（核心机制）
+   ============================================================ */
+function tryDash() {
+  const p = player;
+  if (state !== 'playing' || !p || paused) return;
+  if (p.dashT > 0 || p.dashCharges <= 0) return;
+
+  let dx = 0, dy = 0;
+  if (keys['a'] || keys['arrowleft']) dx -= 1;
+  if (keys['d'] || keys['arrowright']) dx += 1;
+  if (keys['w'] || keys['arrowup']) dy -= 1;
+  if (keys['s'] || keys['arrowdown']) dy += 1;
+
+  if (dx || dy) {
+    const m = Math.hypot(dx, dy);
+    p.dirx = dx / m; p.diry = dy / m;
+  } else {
+    dx = p.dirx; dy = p.diry;
+  }
+
+  p.dashCharges -= 1;
+  if (achRun) achRun.dashes += 1;
+  p.freezeT = 0;   // 冲刺可以震碎冰冻
+  p.dashT = p.stats.dashTime;
+  p.invuln = Math.max(p.invuln, p.stats.dashTime + 0.2 + p.stats.invulnBonus);
+  p.dashDx = dx; p.dashDy = dy;
+  p.hitIds.clear();
+
+  burst(p.x, p.y, '#63d9ff', 7, 50);
+  blip(420, 0.11, 'sawtooth', 0.045, -300);
+  blip(180, 0.06, 'square', 0.03, 90);
+  if (tutorial && tutorial.active && tutorial.step === 1) tutAdvance();
+}
+
+/* ============================================================
+   状态效果：毒 / 封锁吸血 / 减速 / 冰冻
+   ============================================================ */
+function applyPoison(dur) {
+  const p = player;
+  if (!p) return;
+  if (p.poisonT <= 0.2 && achRun) achRun.poisons += 1;
+  p.poisonT = Math.max(p.poisonT, dur);
+  applyHealBlock(dur);
+}
+function applyHealBlock(dur) {
+  if (!player) return;
+  player.healBlock = Math.max(player.healBlock, dur);
+}
+function applySlow(dur, mul) {
+  const p = player;
+  if (!p) return;
+  p.slowT = Math.max(p.slowT, dur);
+  p.slowMul = Math.min(p.slowMul, mul || 0.5);
+}
+function applyFreeze(dur) {
+  const p = player;
+  if (!p) return;
+  if (p.freezeT <= 0 && achRun) achRun.freezes += 1;
+  p.freezeT = Math.max(p.freezeT, dur);
+}
+
+/* ============================================================
+   更新：玩家
+   ============================================================ */
+function updatePlayer(dt) {
+  const p = player;
+  if (p.flash > 0) p.flash -= dt;
+  if (p.invuln > 0) p.invuln -= dt;
+  if (p.healCd > 0) p.healCd -= dt;
+  if (p.healBlock > 0) p.healBlock -= dt;
+  if (p.slowT > 0) {
+    p.slowT -= dt;
+    if (p.slowT <= 0) p.slowMul = 1;
+  }
+  if (p.freezeT > 0) p.freezeT -= dt;
+
+  // 中毒：每秒固定掉 1 点血，且期间无法吸血
+  if (p.poisonT > 0) {
+    p.poisonT -= dt;
+    p.poisonTick -= dt;
+    if (p.poisonTick <= 0) {
+      p.poisonTick = 1;
+      p.hp -= 1;
+      p.flash = 0.1;
+      texts.push({ x: p.x, y: p.y - 12, vy: -18, life: 0.6, text: '-1 毒', color: '#9ef58a' });
+      burst(p.x, p.y, '#9ef58a', 5, 30);
+      blip(260, 0.08, 'triangle', 0.03, -60);
+      if (p.hp <= 0) { p.hp = 0; endGame(false); return; }
+    }
+  }
+
+  // 守护结界：护盾按冷却恢复
+  if (p.stats.shieldMax > 0 && p.shield < p.stats.shieldMax) {
+    p.shieldT += dt;
+    if (p.shieldT >= p.stats.shieldCd) {
+      p.shieldT = 0;
+      p.shield += 1;
+      blip(700, 0.07, 'triangle', 0.03, 140);
+    }
+  }
+
+  // 充能恢复
+  if (p.dashCharges < p.stats.dashCharges) {
+    p.dashRefill += dt;
+    if (p.dashRefill >= p.stats.dashCd) {
+      p.dashRefill = 0;
+      p.dashCharges += 1;
+      blip(660, 0.04, 'triangle', 0.03, 160);
+    }
+  } else {
+    p.dashRefill = 0;
+  }
+
+  let ix = 0, iy = 0;
+  if (keys['a'] || keys['arrowleft']) ix -= 1;
+  if (keys['d'] || keys['arrowright']) ix += 1;
+  if (keys['w'] || keys['arrowup']) iy -= 1;
+  if (keys['s'] || keys['arrowdown']) iy += 1;
+
+  const wasDashing = p.dashT > 0;
+
+  if (wasDashing) {
+    p.dashT -= dt;
+    p.x += p.dashDx * p.stats.dashSpeed * dt;
+    p.y += p.dashDy * p.stats.dashSpeed * dt;
+
+    // 火焰尾迹
+    if (p.stats.trailTime > 0) {
+      p.trailTick -= dt;
+      if (p.trailTick <= 0) {
+        p.trailTick = 0.035;
+        trails.push({ x: p.x, y: p.y, r: 6, life: p.stats.trailTime, max: p.stats.trailTime });
+      }
+    }
+
+    // 冲刺穿透伤害
+    for (const e of enemies) {
+      if (e.dead || p.hitIds.has(e.id)) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d < e.r + p.stats.dashRadius) {
+        p.hitIds.add(e.id);
+        let dmg = p.stats.dashDamage;
+        if (p.stats.rage > 0 && p.hp <= p.maxHp * 0.5) dmg *= (1 + p.stats.rage);
+        let crit = false;
+        if (p.stats.crit > 0 && Math.random() < p.stats.crit) { dmg *= 2; crit = true; }
+        const killed = damageEnemy(e, dmg, p.x, p.y);
+        if (crit) texts.push({ x: e.x, y: e.y - 9, vy: -22, life: 0.6, text: '暴击!', color: '#ffe066' });
+        e.x += p.dashDx * 3;
+        e.y += p.dashDy * 3;
+        burst(e.x, e.y, '#ffffff', 4, 45);
+        shake = Math.max(shake, 2.2);
+        if (killed && p.stats.healKills > 0) {
+          p.dashKillCount += 1;
+          if (p.dashKillCount >= p.stats.healKills) {
+            p.dashKillCount = 0;
+            if (p.healBlock > 0) {
+              texts.push({ x: p.x, y: p.y - 10, vy: -16, life: 0.7, text: '被腐蚀 · 无法吸血', color: '#9ef58a' });
+            } else if (p.healCd <= 0) {
+              p.healCd = 1.5;   // 嗜血内部冷却：连续穿杀不会每秒回满
+              p.hp = Math.min(p.maxHp, p.hp + 1);
+              texts.push({ x: p.x, y: p.y - 10, vy: -18, life: 0.7, text: '+1', color: '#7dffb0' });
+            }
+          }
+        }
+        if (killed && tutorial && tutorial.active && tutorial.step === 2) tutAdvance();
+      }
+    }
+  } else if (p.freezeT <= 0) {
+    const m = Math.hypot(ix, iy) || 1;
+    // 摇杆推动幅度决定速度：轻推慢走、推满全速（键盘始终全速）
+    const spd = p.stats.speed * (stickMag > 0 ? 0.45 + 0.55 * stickMag : 1) *
+                (p.slowT > 0 ? p.slowMul : 1);
+    p.x += (ix / m) * spd * dt * (ix || iy ? 1 : 0);
+    p.y += (iy / m) * spd * dt * (ix || iy ? 1 : 0);
+    if (ix || iy) {
+      p.dirx = ix / m;
+      p.diry = iy / m;
+    }
+  }
+
+  // 冲刺结束 -> 爆炸
+  if (wasDashing && p.dashT <= 0 && p.stats.dashExplode > 0) {
+    const R = p.stats.dashExplode;
+    effects.push({ x: p.x, y: p.y, r: R, life: 0.3, max: 0.3, color: '#ffd166' });
+    shake = Math.max(shake, 5);
+    for (const e of enemies) {
+      if (e.dead) continue;
+      if (Math.hypot(e.x - p.x, e.y - p.y) < R + e.r) damageEnemy(e, p.stats.dashDamage * 1.5, p.x, p.y);
+    }
+    blip(80, 0.18, 'square', 0.07, -40);
+  }
+
+  p.x = clamp(p.x, 6, W - 6);
+  p.y = clamp(p.y, 6, H - 6);
+
+  // 自动炮台
+  updateAuto(dt);
+}
+
+function updateAuto(dt) {
+  const p = player;
+  if (p.stats.autoRate <= 0) return;
+  p.autoT += dt;
+  const interval = 1 / p.stats.autoRate;
+  let guard = 0;
+  while (p.autoT >= interval && guard++ < 5) {
+    p.autoT -= interval;
+    let best = null, bd = 1e9;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d < bd) { bd = d; best = e; }
+    }
+    if (best) {
+      const ang = Math.atan2(best.y - p.y, best.x - p.x);
+      bullets.push({ x: p.x, y: p.y, vx: Math.cos(ang) * 160, vy: Math.sin(ang) * 160, r: 2, dmg: 1, life: 1.3 });
+      blip(900, 0.03, 'square', 0.02, -300);
+    }
+  }
+}
+
+/* ============================================================
+   伤害 / 击杀
+   ============================================================ */
+function damageEnemy(e, dmg, sx, sy) {
+  if (e.dead) return false;
+  if (e.affix === 'shield') dmg *= 0.5;
+  e.hp -= dmg;
+  e.flash = 0.07;
+  if (e.hp <= 0) {
+    killEnemy(e);
+    return true;
+  }
+  // 未击杀的命中：白色火花 + 轻击音（限频，避免一片怪时糊成噪音）
+  burst(e.x, e.y, '#ffffff', 2, 30);
+  if (hitSnd <= 0) { hitSnd = 0.06; blip(620, 0.03, 'square', 0.03, -90); }
+  return false;
+}
+
+function killEnemy(e) {
+  if (e.dead) return;
+  e.dead = true;
+  kills += 1;
+  /* 成就追踪：击杀数 / 精英 / BOSS / 3 秒连杀窗口 */
+  if (achRun) {
+    achRun.kills += 1;
+    achRun.lastKill = time;
+    achRun.killTimes.push(time);
+    while (achRun.killTimes.length && time - achRun.killTimes[0] > 3) achRun.killTimes.shift();
+    if (e.affix) achRun.elites += 1;
+    if (e.type === 'boss') { achRun.bosses += 1; achStats.boss += 1; saveAchStats(); }
+  }
+  checkAch();
+  const t = ETYPES[e.type];
+  const pts = Math.round((e.pts || t.pts) * player.stats.scoreMul * (e.affix ? 2.5 : 1));
+  killScore += pts;
+  if (t.xp > 0) orbs.push({ x: e.x, y: e.y, v: e.affix ? Math.max(2, t.xp * 2) : t.xp, r: 2.2, dead: false });
+  // 换牌机会掉落：普通怪小概率、精英较高、BOSS 必掉
+  const rrChance = e.type === 'boss' ? 1 : e.affix ? 0.2 : 0.03;
+  if (rerolls + drops.length < 6 && Math.random() < rrChance) {
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'reroll' });
+  }
+  // 金币掉落：普通 8%，精英 25%
+  const coinChance = e.affix ? 0.25 : 0.08;
+  if (e.type !== 'boss' && Math.random() < coinChance) {
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'coin', val: e.affix ? 6 : 3 });
+  }
+  // 血包掉落：低血量时概率翻倍
+  const lowHp = player.hp <= player.maxHp * 0.4;
+  const hpChance = (e.affix ? 0.08 : 0.02) * (lowHp ? 2 : 1);
+  if (e.type !== 'boss' && Math.random() < hpChance) {
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'hp' });
+  }
+  const kcol = e.affix ? AFFIX[e.affix].col : t.color;
+
+  // 打击感：顿帧 + 震屏 + 冲击环 + 分数飘字
+  hitStop = Math.max(hitStop, e.type === 'boss' ? 0.08 : 0.04);
+  shake = Math.max(shake, e.type === 'boss' ? 9 : 2.8);
+  effects.push({ x: e.x, y: e.y, r: e.type === 'boss' ? 26 : 13, life: 0.26, max: 0.26, color: kcol });
+  texts.push({ x: e.x, y: e.y - 9, vy: -27, life: 0.72, text: '+' + pts, color: '#ffe066' });
+  burst(e.x, e.y, kcol, e.type === 'boss' ? 26 : 10, e.type === 'boss' ? 110 : 74);
+
+  // 词缀结算
+  if (e.affix === 'split') {
+    splitQueue.push({ x: e.x - 7, y: e.y + 3 }, { x: e.x + 7, y: e.y - 3 });
+  } else if (e.affix === 'boom') {
+    effects.push({ x: e.x, y: e.y, r: 22, life: 0.3, max: 0.3, color: '#ffa53d' });
+    burst(e.x, e.y, '#ffa53d', 16, 96);
+    shake = Math.max(shake, 4);
+    if (Math.hypot(player.x - e.x, player.y - e.y) < 22) hitPlayer({ x: e.x, y: e.y, dmg: 1 });
+  }
+
+  // 毒囊死亡后原地扩散毒雾
+  if (e.type === 'poisoner') {
+    hazards.push({ x: e.x, y: e.y, r: 22, life: 5, max: 5, poison: true });
+    effects.push({ x: e.x, y: e.y, r: 22, life: 0.4, max: 0.4, color: '#9ef58a' });
+  }
+
+  // 音效：不同怪不同音高，越硬越低
+  const pitch = { chaser: 168, fast: 205, shooter: 230, tank: 132, poisoner: 196, frost: 250, bomber: 320, boss: 88 }[e.type] || 168;
+  if (e.type === 'boss') {
+    screenFlash = 0.25;
+    blip(88, 0.3, 'square', 0.1, -60);
+    blip(56, 0.22, 'sawtooth', 0.07, -20);
+    // 击破奖励：回 1 血 + 一圈大号经验球，明确「打死有回报」
+    const gen = e.gen || 1;
+    player.hp = Math.min(player.maxHp, player.hp + 1);
+    coins += 15;
+    if (achRun) achRun.coinsEarned += 15;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU + rand(0, 0.4), rr = rand(10, 24);
+      orbs.push({ x: clamp(e.x + Math.cos(a) * rr, 4, W - 4), y: clamp(e.y + Math.sin(a) * rr, 4, H - 4), v: 3, r: 2.2, dead: false });
+    }
+    // BOSS 必掉 2 个血包 + 1 个金币堆
+    for (let i = 0; i < 2; i++) {
+      drops.push({ x: clamp(e.x + rand(-10, 10), 8, W - 8), y: clamp(e.y + rand(-10, 10), 8, H - 8), t: rand(0, 3), dead: false, kind: 'hp' });
+    }
+    drops.push({ x: e.x, y: e.y, t: rand(0, 3), dead: false, kind: 'coin', val: 10 });
+    clearBossScreen(e);
+    toast(bossName(gen) + ' 击破 · 清屏', true);
+  } else {
+    blip(pitch, 0.07, 'square', 0.06, -48);
+    blip(pitch * 2.1, 0.05, 'triangle', 0.035, 120);
+  }
+}
+
+/* BOSS 击破清屏：只清小兵与弹幕，场上其余 BOSS 保留 */
+function clearBossScreen(boss) {
+  let n = 0;
+  for (const e of enemies) {
+    if (e.dead || e === boss || e.type === 'boss') continue;
+    e.dead = true;
+    n += 1;
+    killScore += 5;
+    effects.push({ x: e.x, y: e.y, r: 9, life: 0.22, max: 0.22, color: '#ffe066' });
+    burst(e.x, e.y, '#ffe066', 5, 40);
+  }
+  ebullets = [];
+  marks = [];
+  hazards = [];
+  screenFlash = Math.max(screenFlash, 0.35);
+  shake = Math.max(shake, 10);
+  if (achRun) achRun.clears += 1;
+  if (n > 0) toast('清屏 · ' + n + ' 个小兵', true);
+  blip(140, 0.28, 'square', 0.07, -60);
+}
+
+/* 殉爆虫自爆：不给分、不给经验，只造成伤害 */
+function explodeBomber(e) {
+  e.dead = true;
+  effects.push({ x: e.x, y: e.y, r: 26, life: 0.32, max: 0.32, color: '#ffb15c' });
+  effects.push({ x: e.x, y: e.y, r: 14, life: 0.24, max: 0.24, color: '#fff1c8' });
+  burst(e.x, e.y, '#ffb15c', 18, 100);
+  shake = Math.max(shake, 5);
+  screenFlash = Math.max(screenFlash, 0.12);
+  blip(66, 0.2, 'square', 0.08, -30);
+  if (Math.hypot(player.x - e.x, player.y - e.y) < 26 + player.r) {
+    hitPlayer({ x: e.x, y: e.y, dmg: e.dmg || 2 });
+  }
+}
+
+function hitPlayer(src) {
+  const p = player;
+  if (p.invuln > 0 || p.dashT > 0 || state !== 'playing') return;
+
+  const dx = p.x - src.x, dy = p.y - src.y, d = Math.hypot(dx, dy) || 1;
+
+  // 护盾优先吸收
+  if (p.shield > 0) {
+    p.shield -= 1;
+    p.shieldT = 0;
+    p.invuln = 0.7;
+    p.flash = 0.1;
+    shake = Math.max(shake, 5);
+    screenFlash = 0.16;
+    blip(420, 0.12, 'triangle', 0.075, 120);
+    burst(p.x, p.y, '#7ef0ff', 10, 60);
+    texts.push({ x: p.x, y: p.y - 12, vy: -20, life: 0.6, text: '护盾抵挡', color: '#7ef0ff' });
+    if (src.type) {
+      src.x = clamp(src.x - dx / d * 11, src.r, W - src.r);
+      src.y = clamp(src.y - dy / d * 11, src.r, H - src.r);
+    }
+    return;
+  }
+
+  p.hp -= (src.dmg || 1);
+  if (achRun) { achRun.hits += 1; achRun.noHitT = 0; }
+  checkAch();
+  p.invuln = diff.invuln;
+  p.flash = 0.12;
+  shake = Math.max(shake, 7);
+  screenFlash = 0.28;
+  blip(95, 0.2, 'sawtooth', 0.09, -35);
+  burst(p.x, p.y, '#ff4d6d', 10, 70);
+
+  p.x = clamp(p.x + dx / d * 9, 6, W - 6);
+  p.y = clamp(p.y + dy / d * 9, 6, H - 6);
+
+  // 撞到玩家的敌人被弹开，避免贴脸连续扣血
+  if (src.type) {
+    src.x = clamp(src.x - dx / d * 11, src.r, W - src.r);
+    src.y = clamp(src.y - dy / d * 11, src.r, H - src.r);
+  }
+
+  if (p.hp <= 0) {
+    p.hp = 0;
+    endGame(false);
+  }
+}
+
+/* ============================================================
+   更新：敌人
+   ============================================================ */
+function spawnEnemy(type, x, y, plain) {
+  const t = ETYPES[type];
+  const tier = threatTier();
+  const hpMul = (1 + time / diff.hpGrow) * diff.hp * (1 + 0.08 * tier);
+  const spMul = (1 + time / 280) * diff.spd;
+  // 同屏精英上限，避免后期整屏都是词缀怪、画面读不清
+  let eliteOnField = 0;
+  for (const q of enemies) if (!q.dead && q.affix) eliteOnField++;
+  const elite = !plain && type !== 'boss' && eliteOnField < 14 && Math.random() < eliteChance();
+  const affix = elite ? pick(AFFIX_IDS) : null;
+  let hp = Math.round(t.hp * hpMul);
+  if (affix === 'shield') hp = Math.round(hp * 1.6);
+  if (type === 'boss') hp = Math.round(hp * (1 + 0.3 * Math.max(0, bossGen - 1)));
+  // 击杀分值随强度递增：威胁等级、场上时间、BOSS 代际、护盾血量都算钱
+  // （难度系数不在这里重复计，统一由 calcScore 的难度倍率处理）
+  let pts = t.pts * (1 + 0.08 * tier);
+  pts *= 1 + 0.18 * Math.min(6, Math.floor(time / 90));
+  if (type === 'boss') pts *= 1 + 0.35 * Math.max(0, bossGen - 1);
+  if (affix === 'shield') pts *= 1.25;
+  pts = Math.max(1, Math.round(pts));
+  enemies.push({
+    id: ++eid, type, x, y, hp, maxHp: hp, pts,
+    r: t.r, speed: t.speed * spMul,
+    dmg: t.dmg + (tier >= 4 ? 1 : 0),
+    flash: 0, auraT: 0, fireT: 0, bossT: 0,
+    lungeT: 0, boost: 0, chargeT: 1.2, bossStep: 0, fuseT: 0,
+    affix, gen: type === 'boss' ? bossGen : 0, dead: false,
+  });
+
+  // 图鉴解锁：基础怪、精英词缀、BOSS 世代各自登记（分裂产物不算图鉴遭遇）
+  if (!plain) {
+    const names = [];
+    const uBase = unlockCodex(type);
+    if (uBase) names.push(uBase);
+    if (affix) { const uEl = unlockCodex('el_' + affix); if (uEl) names.push(uEl); }
+    if (type === 'boss') {
+      const uBoss = unlockCodex('boss' + Math.min(Math.max(bossGen, 1), 4));
+      if (uBoss) names.push(uBoss);
+    }
+    if (names.length) toast('图鉴解锁 · ' + names.join(' · '));
+  }
+}
+
+function spawnAtEdge(type) {
+  const m = 7;
+  const side = irand(0, 3);
+  let x, y;
+  if (side === 0) { x = rand(m, W - m); y = m; }
+  else if (side === 1) { x = rand(m, W - m); y = H - m; }
+  else if (side === 2) { x = m; y = rand(m, H - m); }
+  else { x = W - m; y = rand(m, H - m); }
+  spawnEnemy(type, x, y);
+}
+
+function updateEnemies(dt) {
+  for (const e of enemies) {
+    if (e.dead) continue;
+    if (e.flash > 0) e.flash -= dt;
+
+    const dx = player.x - e.x, dy = player.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d;
+    const slow = player.stats.slowR > 0 && d < player.stats.slowR ? player.stats.slowFactor : 1;
+    const fz = frenzyT > 0 ? 1.25 : 1;
+
+    // 腐蚀词缀：光环范围内封锁吸血并持续中毒
+    if (e.affix === 'corrupt' && d < 30) {
+      applyHealBlock(0.35);
+      if (player.poisonT <= 0.2) applyPoison(2.2);
+    }
+
+    if (e.type === 'shooter') {
+      if (d > 78) { e.x += ux * e.speed * dt * slow * fz; e.y += uy * e.speed * dt * slow * fz; }
+      else if (d < 48) { e.x -= ux * e.speed * dt * 0.9 * slow * fz; e.y -= uy * e.speed * dt * 0.9 * slow * fz; }
+      else { e.x += -uy * e.speed * dt * 0.7 * slow * fz; e.y += ux * e.speed * dt * 0.7 * slow * fz; }
+      e.fireT -= dt;
+      if (e.fireT <= 0 && d < 160) {
+        e.fireT = 2.1;
+        ebullets.push({ x: e.x, y: e.y, vx: ux * 82, vy: uy * 82, r: 2.5, life: 4, dmg: 1, dead: false });
+      }
+    } else if (e.type === 'poisoner') {
+      // 保持 40~70 距离放毒球
+      if (d > 70) { e.x += ux * e.speed * dt * slow * fz; e.y += uy * e.speed * dt * slow * fz; }
+      else if (d < 40) { e.x -= ux * e.speed * dt * 0.8 * slow * fz; e.y -= uy * e.speed * dt * 0.8 * slow * fz; }
+      else { e.x += -uy * e.speed * dt * 0.6 * slow * fz; e.y += ux * e.speed * dt * 0.6 * slow * fz; }
+      e.fireT -= dt;
+      if (e.fireT <= 0 && d < 170) {
+        e.fireT = 2.6;
+        ebullets.push({ x: e.x, y: e.y, vx: ux * 64, vy: uy * 64, r: 3, life: 4.5, dmg: 1, dead: false, poison: true });
+        blip(300, 0.05, 'triangle', 0.025, -80);
+      }
+    } else if (e.type === 'frost') {
+      // 保持 55~90 距离放冰锥
+      if (d > 90) { e.x += ux * e.speed * dt * slow * fz; e.y += uy * e.speed * dt * slow * fz; }
+      else if (d < 55) { e.x -= ux * e.speed * dt * 0.8 * slow * fz; e.y -= uy * e.speed * dt * 0.8 * slow * fz; }
+      else { e.x += -uy * e.speed * dt * 0.5 * slow * fz; e.y += ux * e.speed * dt * 0.5 * slow * fz; }
+      e.fireT -= dt;
+      if (e.fireT <= 0 && d < 175) {
+        e.fireT = 2.4;
+        ebullets.push({ x: e.x, y: e.y, vx: ux * 74, vy: uy * 74, r: 3, life: 4.5, dmg: 1, dead: false, frost: true });
+        blip(760, 0.05, 'triangle', 0.025, 120);
+      }
+    } else if (e.type === 'bomber') {
+      // 追到身边后点燃引信，0.6 秒自爆（不给分）
+      if (e.fuseT > 0) {
+        e.fuseT -= dt;
+        if (e.fuseT <= 0) { explodeBomber(e); continue; }
+      } else {
+        e.x += ux * e.speed * dt * slow * fz;
+        e.y += uy * e.speed * dt * slow * fz;
+        if (d < 16) {
+          e.fuseT = 0.6;
+          blip(880, 0.06, 'square', 0.03, 140);
+        }
+      }
+    } else if (e.type === 'fast') {
+      e.lungeT -= dt;
+      let sp = e.speed;
+      if (e.lungeT <= 0) { e.lungeT = 1.7; e.boost = 0.28; }
+      if (e.boost > 0) { e.boost -= dt; sp = e.speed * 2.3; }
+      e.x += ux * sp * dt * slow * fz; e.y += uy * sp * dt * slow * fz;
+    } else if (e.type === 'boss') {
+      const gen = e.gen || 1;
+      if (e.boost > 0) e.boost -= dt;
+      const sp = e.speed * (1 + 0.06 * (gen - 1)) * (e.boost > 0 ? 2.4 : 1);
+      e.x += ux * sp * dt * slow * fz;
+      e.y += uy * sp * dt * slow * fz;
+      e.bossT -= dt;
+      if (e.bossT <= 0) {
+        const rage = e.hp <= e.maxHp * 0.5;
+        e.bossT = rage ? 2.5 : 3.4;
+        e.bossStep = (e.bossStep || 0) + 1;
+        // 招式随世代解锁：1 环形 → 2 召唤/毒池 → 3 冰锥/冲锋 → 4 全部
+        const moves = ['ring'];
+        if (gen >= 2) moves.push('summon', 'poison');
+        if (gen >= 3) moves.push('frost', 'charge');
+        if (gen >= 4) moves.push('fan');
+        const kind = moves[e.bossStep % moves.length];
+        const bdmg = gen >= 4 ? 2 : 1;
+
+        if (kind === 'ring') {
+          // 环形弹幕：弹量随世代增加
+          const n = 8 + (gen - 1) * 2;
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * TAU + time * (0.6 + 0.15 * gen);
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, r: 3, life: 5, dmg: bdmg, dead: false });
+          }
+          blip(120, 0.2, 'square', 0.05, -50);
+        } else if (kind === 'summon') {
+          // 召唤小怪：先在地面亮起预警圈，0.75 秒后才真正冒出来
+          if (enemies.length + marks.length < 150) {
+            const n2 = 2 + gen;
+            for (let i = 0; i < n2; i++) {
+              const a = rand(0, TAU), rr = rand(14, 30);
+              marks.push({
+                x: clamp(e.x + Math.cos(a) * rr, 8, W - 8),
+                y: clamp(e.y + Math.sin(a) * rr, 8, H - 8),
+                r: 7, t: 0.75, max: 0.75,
+              });
+            }
+          }
+          // 三连散射
+          const base = Math.atan2(dy, dx);
+          for (let i = -1; i <= 1; i++) {
+            const a = base + i * 0.3;
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 86, vy: Math.sin(a) * 86, r: 3, life: 5, dmg: bdmg, dead: false });
+          }
+          blip(90, 0.22, 'sawtooth', 0.06, -30);
+        } else if (kind === 'poison') {
+          // 毒池：在玩家附近与自身周围留下 3 片毒雾
+          for (let i = 0; i < 3; i++) {
+            const a = rand(0, TAU), rr = rand(16, 36);
+            const px2 = i === 0 ? clamp(player.x + rand(-12, 12), 10, W - 10) : clamp(e.x + Math.cos(a) * rr, 10, W - 10);
+            const py2 = i === 0 ? clamp(player.y + rand(-12, 12), 10, H - 10) : clamp(e.y + Math.sin(a) * rr, 10, H - 10);
+            hazards.push({ x: px2, y: py2, r: 22, life: 5, max: 5, poison: true });
+          }
+          blip(180, 0.2, 'triangle', 0.05, -40);
+        } else if (kind === 'frost') {
+          // 冰锥扇面：命中减速，连续命中会冰冻
+          const base = Math.atan2(dy, dx);
+          for (let i = -2; i <= 2; i++) {
+            const a = base + i * 0.2;
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 78, vy: Math.sin(a) * 78, r: 3, life: 5, dmg: bdmg, dead: false, frost: true });
+          }
+          blip(560, 0.16, 'triangle', 0.05, 90);
+        } else if (kind === 'charge') {
+          // 冲锋 + 扇形弹幕
+          e.boost = 0.45;
+          const base = Math.atan2(dy, dx);
+          for (let i = -3; i <= 3; i++) {
+            const a = base + i * 0.16;
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 96, vy: Math.sin(a) * 96, r: 3, life: 5, dmg: bdmg, dead: false });
+          }
+          blip(70, 0.26, 'square', 0.07, -50);
+        } else {
+          // 四周扩散弹幕
+          const base = Math.atan2(dy, dx);
+          for (let i = -5; i <= 5; i++) {
+            const a = base + i * 0.22;
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 88, vy: Math.sin(a) * 88, r: 3, life: 5, dmg: bdmg, dead: false });
+          }
+          blip(90, 0.2, 'sawtooth', 0.055, -40);
+        }
+      }
+    } else {
+      let sp = e.speed;
+      if (e.affix === 'charge') {
+        e.chargeT -= dt;
+        if (e.chargeT <= 0) { e.chargeT = 2.2; e.boost = 0.3; }
+        if (e.boost > 0) { e.boost -= dt; sp = e.speed * 2.6; }
+      }
+      e.x += ux * sp * dt * slow * fz;
+      e.y += uy * sp * dt * slow * fz;
+    }
+
+    e.x = clamp(e.x, e.r, W - e.r);
+    e.y = clamp(e.y, e.r, H - e.r);
+
+    // 接触伤害
+    if (player.invuln <= 0 && player.dashT <= 0) {
+      if (Math.hypot(player.x - e.x, player.y - e.y) < e.r + player.r + 1) {
+        hitPlayer(e);
+        if (state !== 'playing') return;
+      }
+    }
+  }
+}
+
+function updateEBullets(dt) {
+  for (const b of ebullets) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    if (b.x < 0 || b.x > W || b.y < 0 || b.y > H) b.life = 0;
+    if (b.life <= 0) continue;
+    if (player.invuln <= 0 && player.dashT <= 0 &&
+        Math.hypot(player.x - b.x, player.y - b.y) < player.r + b.r) {
+      b.life = 0;
+      if (b.poison) applyPoison(2.6);
+      if (b.frost) {
+        if (player.slowT > 0) { applyFreeze(0.6); texts.push({ x: player.x, y: player.y - 14, vy: -16, life: 0.6, text: '冰冻!', color: '#dff4ff' }); }
+        else applySlow(2, 0.5);
+      }
+      hitPlayer(b);
+      if (state !== 'playing') return;
+    }
+  }
+  ebullets = ebullets.filter((b) => b.life > 0);
+}
+
+function updateBullets(dt) {
+  for (const b of bullets) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    if (b.x < 0 || b.x > W || b.y < 0 || b.y > H) b.life = 0;
+    if (b.life <= 0) continue;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      if (Math.hypot(e.x - b.x, e.y - b.y) < e.r + b.r) {
+        damageEnemy(e, b.dmg, b.x, b.y);
+        b.life = 0;
+        burst(b.x, b.y, '#ffe066', 4, 40);
+        break;
+      }
+    }
+  }
+  bullets = bullets.filter((b) => b.life > 0);
+}
+
+/* ============================================================
+   更新：经验球 / 区域伤害 / 粒子
+   ============================================================ */
+function gainXP(n) {
+  const p = player;
+  p.xp += n * p.stats.xpMul * diff.xp;
+  while (p.xp >= p.xpNext) {
+    p.xp -= p.xpNext;
+    p.level += 1;
+    p.xpNext = Math.round(p.xpNext * 1.22 + 2);
+    pendingLevels += 1;
+    p.hp = Math.min(p.maxHp, p.hp + 1);   // 升级回 1 点血，缓解中期压力
+  }
+  if (pendingLevels > 0 && state === 'playing') openUpgrade();
+}
+
+/* 掉落物：换牌 / 金币 / 血包，靠近吸附，碰到即收集 */
+function updateDrops(dt) {
+  const p = player;
+  for (const d of drops) {
+    d.t += dt;
+    const dx = p.x - d.x, dy = p.y - d.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (dist < 34) {
+      const sp = 60 + 120 * (1 - dist / 34);
+      d.x += (dx / dist) * sp * dt;
+      d.y += (dy / dist) * sp * dt;
+    }
+    if (dist < 8) {
+      d.dead = true;
+      const kind = d.kind || 'reroll';
+      if (kind === 'coin') {
+        const v = d.val || 3;
+        coins += v;
+        if (achRun) { achRun.coinsEarned += v; checkAch(); }
+        toast('金币 +' + v);
+        blip(1040, 0.06, 'triangle', 0.04, 180);
+        effects.push({ x: d.x, y: d.y, r: 8, life: 0.2, max: 0.2, color: '#ffd54a' });
+        burst(d.x, d.y, '#ffd54a', 6, 40);
+      } else if (kind === 'hp') {
+        p.hp = Math.min(p.maxHp, p.hp + 2);
+        texts.push({ x: p.x, y: p.y - 10, vy: -18, life: 0.7, text: '+2', color: '#7dffb0' });
+        toast('血包 +2');
+        blip(700, 0.09, 'triangle', 0.05, 160);
+        effects.push({ x: d.x, y: d.y, r: 9, life: 0.22, max: 0.22, color: '#ff6b7a' });
+        burst(d.x, d.y, '#ff6b7a', 7, 42);
+      } else {
+        rerolls = Math.min(6, rerolls + 1);
+        toast('换牌机会 +1');
+        blip(980, 0.06, 'triangle', 0.05, 220);
+        effects.push({ x: d.x, y: d.y, r: 8, life: 0.2, max: 0.2, color: '#ffe066' });
+        burst(d.x, d.y, '#ffe066', 6, 40);
+      }
+    }
+  }
+  drops = drops.filter((d) => !d.dead);
+}
+
+function updateOrbs(dt) {
+  const p = player;
+  orbChainT -= dt;
+  for (const o of orbs) {
+    const dx = p.x - o.x, dy = p.y - o.y;
+    const d = Math.hypot(dx, dy) || 1;
+    // 全图缓慢吸附，靠近后加速：冲刺会把玩家带离击杀点，经验球不该被落下
+    const speed = d < p.stats.magnet
+      ? 60 + 170 * (1 - d / p.stats.magnet)
+      : 46;
+    o.x += (dx / d) * speed * dt;
+    o.y += (dy / d) * speed * dt;
+    if (d < 7) {
+      o.dead = true;
+      if (achRun) { achRun.orbs += 1; checkAch(); }
+      gainXP(o.v);
+      if (state !== 'playing') return;
+      // 连吃多颗时音高递进，反馈更“顺”
+      orbChain = orbChainT > 0 ? orbChain + 1 : 1;
+      orbChainT = 0.85;
+      blip(660 + Math.min(orbChain, 9) * 46, 0.045, 'triangle', 0.04, 160);
+      effects.push({ x: o.x, y: o.y, r: 5, life: 0.16, max: 0.16, color: '#7ef0ff' });
+      burst(o.x, o.y, '#7ef0ff', 4, 34);
+    }
+  }
+  orbs = orbs.filter((o) => !o.dead);
+}
+
+function updateZones(dt) {
+  const p = player;
+
+  // 光环
+  if (p.stats.auraR > 0) {
+    for (const e of enemies) {
+      if (e.dead) continue;
+      if (Math.hypot(e.x - p.x, e.y - p.y) < p.stats.auraR + e.r) {
+        if (time - e.auraT > 0.36) {
+          e.auraT = time;
+          damageEnemy(e, p.stats.auraDps * 0.36, p.x, p.y);
+        }
+      }
+    }
+  }
+
+  // 火焰尾迹
+  if (trails.length) {
+    for (const e of enemies) {
+      if (e.dead) continue;
+      for (const t of trails) {
+        if (t.life <= 0) continue;
+        if (Math.hypot(e.x - t.x, e.y - t.y) < t.r + e.r) {
+          if (time - e.fireT > 0.45) {
+            e.fireT = time;
+            damageEnemy(e, 1.3, t.x, t.y);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  for (const t of trails) t.life -= dt;
+  trails = trails.filter((t) => t.life > 0);
+}
+
+/* 毒雾区域：站在里面会封锁吸血并持续中毒 */
+function updateHazards(dt) {
+  if (!hazards.length) return;
+  for (const h of hazards) {
+    h.life -= dt;
+    if (Math.hypot(player.x - h.x, player.y - h.y) < h.r) {
+      applyHealBlock(0.4);
+      if (player.poisonT <= 0.2) applyPoison(2.4);
+    }
+  }
+  hazards = hazards.filter((h) => h.life > 0);
+}
+
+function updateParticles(dt) {
+  for (const p of particles) {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.94; p.vy *= 0.94;
+    p.life -= dt;
+  }
+  particles = particles.filter((p) => p.life > 0);
+
+  for (const f of effects) f.life -= dt;
+  effects = effects.filter((f) => f.life > 0);
+
+  for (const t of texts) { t.y += t.vy * dt; t.life -= dt; }
+  texts = texts.filter((t) => t.life > 0);
+}
+
+function burst(x, y, color, n, speed) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, TAU), s = rand(0.25, 1) * (speed || 60);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rand(0.15, 0.5), max: 0.5,
+      color, size: irand(1, 2),
+    });
+  }
+}
+
