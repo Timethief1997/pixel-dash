@@ -241,9 +241,11 @@ function hudSync() {
   /* 模式标签：教程 / 第 N 关 / 第 N 波 */
   const mc = MODES[modeKey] || MODES.endless;
   const stageTxt = campaign && curLevel
-    ? '第 ' + curLevel.id + ' 关' + (curLevel.goal === 'score' ? ' · 目标 ' + curLevel.scoreGoal + ' 分' : '')
+    ? '第 ' + curLevel.id + ' 关' +
+      (curLevel.goal === 'score' ? ' · 目标 ' + curLevel.scoreGoal + ' 分' : '') +
+      (core ? ' · 守水晶 ' + Math.max(0, core.hp) + '/' + core.maxHp : '')
     : modeKey === 'endless' ? '第 ' + wave + ' 波' : mc.name;
-  const modeSig = modeKey + '|' + (curLevel ? curLevel.id : 0) + '|' + wave;
+  const modeSig = modeKey + '|' + (curLevel ? curLevel.id : 0) + '|' + wave + '|' + (core ? core.hp : -1);
   if (diffTagEl.dataset.sig !== modeSig) {
     diffTagEl.dataset.sig = modeSig;
     diffTagEl.textContent = modeKey === 'tutorial' ? mc.name : mc.short + ' · ' + stageTxt;

@@ -146,7 +146,7 @@ function checkCampaign() {
   if (lv.goal === 'boss' && bossKills >= lv.bosses) { endGame(true); return; }
   if (lv.goal === 'score' && calcScore() >= lv.scoreGoal) { endGame(true); return; }
   if (time >= campaignDeadline) {
-    if (lv.goal === 'survive') endGame(true);
+    if (lv.goal === 'survive' || lv.goal === 'defend') endGame(true);
     else endGame(false);
   }
 }

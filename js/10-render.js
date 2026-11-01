@@ -219,6 +219,56 @@ function drawEnemy(e) {
 
   paintMonster(ctx, left, top, s, { color: bodyCol, edge: edgeCol, type: e.type, gen, flash: e.flash > 0 });
 
+  // 霜语 · 冻慢：整只裹上一层冷蓝霜气，脚下霜环 + 飘落冰晶
+  if (e.chillT > 0 && e.freezeT <= 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * 5 + e.id);
+    ctx.globalAlpha = 0.14 + 0.10 * pulse;
+    ctx.fillStyle = '#7fd4ff';
+    ctx.fillRect(left - 1, top - 1, s + 2, s + 2);
+    ctx.globalAlpha = 0.5 + 0.22 * pulse;
+    ctx.strokeStyle = '#bfe8ff';
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.arc(x, y, e.r + 3 + pulse, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 飘落的冰晶
+    for (let k = 0; k < 3; k++) {
+      const ph = (time * 0.7 + k * 0.37 + e.id * 0.21) % 1;
+      ctx.globalAlpha = 0.65 * (1 - ph);
+      ctx.fillStyle = k % 2 ? '#eaf9ff' : '#bfe8ff';
+      ctx.fillRect(Math.round(x - 5 + k * 5), Math.round(top - 3 + ph * (s + 5)), 1, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // 霜语 · 冻结：整只封进半透明冰块，带高光、冰裂纹与四角冰刺
+  if (e.freezeT > 0) {
+    ctx.globalAlpha = 0.62;
+    ctx.fillStyle = '#9fd8f5';
+    ctx.fillRect(left - 2, top - 2, s + 4, s + 4);
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#eaf9ff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(left - 2.5, top - 2.5, s + 5, s + 5);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(left, top + 1, 1, Math.max(2, Math.round(s * 0.4)));
+    ctx.fillRect(left + s - 2, top + Math.round(s * 0.5), 1, Math.max(2, Math.round(s * 0.35)));
+    // 冰裂纹
+    ctx.strokeStyle = 'rgba(255,255,255,.5)';
+    ctx.beginPath();
+    ctx.moveTo(left + 2, top + 2);
+    ctx.lineTo(left + Math.round(s * 0.5), top + Math.round(s * 0.55));
+    ctx.lineTo(left + s - 2, top + Math.round(s * 0.3));
+    ctx.stroke();
+    ctx.fillStyle = '#dff4ff';
+    ctx.fillRect(left - 4, top + Math.round(s * 0.4), 2, 1);
+    ctx.fillRect(left + s + 2, top + Math.round(s * 0.6), 2, 1);
+    ctx.fillRect(left + Math.round(s * 0.5), top - 4, 1, 2);
+    ctx.fillRect(left + Math.round(s * 0.3), top + s + 2, 1, 2);
+    ctx.globalAlpha = 1;
+  }
+
   // 霜核：一圈淡蓝寒气，让冰系小怪在人群里也能一眼认出
   if (e.type === 'frost') {
     ctx.globalAlpha = 0.20 + 0.10 * Math.sin(time * 4 + e.id);
@@ -252,6 +302,141 @@ function drawEnemy(e) {
     ctx.fillRect(x, top - 8, 1, 3);
     ctx.fillRect(x, top - 4, 1, 1);
   }
+}
+
+/* ============================================================
+   新机制：涨潮水幕 / 传送台 / 守护水晶
+   ============================================================ */
+/* 涨潮：安全圈以外整片压成水下蓝，圈边一圈发光泡沫，一眼能看出边界在收 */
+function drawTide() {
+  if (!tideR) return;
+  const cx = W / 2, cy = H / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  ctx.arc(cx, cy, tideR, 0, TAU, true);
+  ctx.fillStyle = 'rgba(16,104,120,.34)';
+  ctx.fill('evenodd');
+  ctx.globalAlpha = 0.20;
+  ctx.fillStyle = '#0b4a58';
+  ctx.fill('evenodd');
+  ctx.globalAlpha = 1;
+
+  // 圈边泡沫：沿圆周分布的亮点 + 呼吸
+  const n = Math.max(48, Math.round(tideR * 1.6));
+  const pulse = 0.5 + 0.5 * Math.sin(time * 2.6);
+  ctx.fillStyle = '#c8fff4';
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    ctx.globalAlpha = 0.35 + 0.45 * pulse * (0.5 + 0.5 * Math.sin(time * 5 + i * 0.5));
+    ctx.fillRect(Math.round(cx + Math.cos(a) * tideR), Math.round(cy + Math.sin(a) * tideR), 1, 1);
+  }
+  ctx.globalAlpha = 0.55 + 0.25 * pulse;
+  ctx.strokeStyle = '#7ff0e0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, tideR, 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* 传送台：成对出现，踩上去会闪烁；冷却期间变暗，提示暂时不能用 */
+function drawPortals() {
+  for (let i = 0; i < portals.length; i++) {
+    const q = portals[i];
+    const cool = portalCd > 0;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 3 + i * 2);
+    ctx.globalAlpha = cool ? 0.28 : 0.45 + 0.2 * pulse;
+    ctx.fillStyle = '#2a1040';
+    ctx.beginPath();
+    ctx.ellipse(q.x, q.y, q.r + 1, q.r * 0.62 + 1, 0, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = cool ? 0.3 : 0.75;
+    ctx.strokeStyle = '#ff6bd6';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(q.x, q.y, q.r, q.r * 0.62, 0, 0, TAU);
+    ctx.stroke();
+    // 旋转符文：两端错相，看起来是连通的
+    const a0 = time * (cool ? 0.8 : 2.2) + i * Math.PI;
+    ctx.fillStyle = cool ? '#7a5a86' : '#ffd0f5';
+    for (let k = 0; k < 4; k++) {
+      const a = a0 + (k / 4) * TAU;
+      ctx.fillRect(Math.round(q.x + Math.cos(a) * q.r), Math.round(q.y + Math.sin(a) * q.r * 0.62), 2, 1);
+    }
+    // 中心菱形
+    ctx.globalAlpha = cool ? 0.3 : 0.9;
+    const s = 3;
+    ctx.fillStyle = '#ff6bd6';
+    ctx.beginPath();
+    ctx.moveTo(q.x, q.y - s);
+    ctx.lineTo(q.x + s, q.y);
+    ctx.lineTo(q.x, q.y + s);
+    ctx.lineTo(q.x - s, q.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffe0fa';
+    ctx.fillRect(Math.round(q.x - 1), Math.round(q.y - 1), 2, 2);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* 守护水晶：菱形晶柱 + 上方血条，被打时整块泛红 */
+function drawCore() {
+  if (!core) return;
+  const { x, y } = core;
+  const pulse = 0.5 + 0.5 * Math.sin(time * 2.2);
+  const hurt = core.flash > 0;
+  ctx.globalAlpha = 0.22 + 0.12 * pulse;
+  ctx.fillStyle = hurt ? '#ff5d6c' : '#7ef0ff';
+  ctx.beginPath();
+  ctx.arc(x, y, core.r + 9, 0, TAU);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // 底座光环
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = hurt ? '#ff8a8a' : '#7ef0ff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(x, y + core.r * 0.7, core.r + 3, 3, 0, 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // 菱形晶柱
+  const h = core.r * 1.5, w = core.r * 0.8;
+  ctx.fillStyle = hurt ? '#ffd0d6' : '#c8fbff';
+  ctx.beginPath();
+  ctx.moveTo(x, y - h);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x, y + h * 0.8);
+  ctx.lineTo(x - w, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = hurt ? '#ff5d6c' : '#38b6d6';
+  ctx.beginPath();
+  ctx.moveTo(x, y - h + 2);
+  ctx.lineTo(x + w - 3, y);
+  ctx.lineTo(x, y + h * 0.8 - 2);
+  ctx.lineTo(x - w + 3, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.fillRect(Math.round(x - 1), Math.round(y - h * 0.45), 2, Math.round(h * 0.45));
+
+  // 血条：上方两行像素条
+  const bw = 24, bx = Math.round(x - bw / 2), by = Math.round(y - h - 8);
+  const k = Math.max(0, core.hp / core.maxHp);
+  ctx.fillStyle = 'rgba(6,14,20,.85)';
+  ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
+  ctx.fillStyle = k > 0.5 ? '#4fe3d0' : k > 0.25 ? '#ffd166' : '#ff5d6c';
+  ctx.fillRect(bx, by, Math.round(bw * k), 3);
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bx, by, Math.round(bw * k), 1);
+  ctx.globalAlpha = 1;
+  txt(String(Math.max(0, core.hp)) + '/' + core.maxHp, x, by - 8, '#9ff5ff', 'center');
 }
 
 /* ============================================================
@@ -434,6 +619,75 @@ const HERO_ART = {
       '....kk..kk......',
       '...k......k.....',
       '..kk......kk....',
+    ],
+  },
+  frost: {
+    /* 霜语：冰蓝短发、白色毛领、深蓝长袍，腰侧一枚冰晶 */
+    pal: { k: '#101820', C: '#dff4ff', c: '#8fc8e8', s: '#f0d6c4', e: '#20303c',
+      R: '#3b7fb8', r: '#265a86', w: '#f2fbff', i: '#bff0ff' },
+    art: [
+      '.....kkkkkk.....',
+      '....kCCCCCCk....',
+      '...kCccccccCk...',
+      '...kCssssssCk...',
+      '...kCseesseCk...',
+      '...kssssssssk...',
+      '..kwwwwwwwwwwk..',
+      '..kRRRRRRRRRRk..',
+      '.kssRRRRRRRRssk.',
+      '.kssRRiirrRRssk.',
+      '..kRRRRRRRRRRk..',
+      '..krrrrrrrrrrk..',
+      '...krrrrrrrrk...',
+      '....kk..kk......',
+      '....cc..cc......',
+      '...ccc..ccc.....',
+    ],
+  },
+  shield: {
+    /* 盾卫：方肩重甲、绿色护盾挂在左臂、金色铆钉，站姿很稳 */
+    pal: { k: '#121a16', M: '#8fd6b0', m: '#4e8c72', s: '#f0d6c4', e: '#1a2820',
+      G: '#b8f5d0', g: '#3e7c62', y: '#ffd166' },
+    art: [
+      '.....kkkkkk.....',
+      '....kMMMMMMk....',
+      '...kMmmmmmmMk...',
+      '...kMssssssMk...',
+      '...kMseessesk...',
+      '...kmssssssmk...',
+      '..kmmmmmmmmmmk..',
+      '..kGGGGMMMMMMk..',
+      '.kgGGGGyMMMMMk..',
+      '.kgGGGGMMMMMMk..',
+      '..kmmmmmmmmmmk..',
+      '..kMmmmmmmmmMk..',
+      '..kmmmmmmmmmmk..',
+      '....kk..kk......',
+      '....mm..mm......',
+      '...mmm..mmm.....',
+    ],
+  },
+  berserk: {
+    /* 狂徒：红头巾、敞开的皮背心、粗手臂，胸前一道旧伤疤 */
+    pal: { k: '#171010', R: '#ff6b6b', r: '#a83a3a', s: '#eab894', e: '#241414',
+      B: '#7a3b2e', b: '#4a231c', d: '#2a1410', o: '#2a2a36' },
+    art: [
+      '.....kkkkkk.....',
+      '....kRRRRRRk....',
+      '...kRrrrrrrRk...',
+      '...kRsssssRk....',
+      '...ksseesssek...',
+      '...kssssdssk....',
+      '..kBBBBBBBBBBk..',
+      '.ksBBBBBBBBBBsk.',
+      '.ksBBdBBBBBBssk.',
+      '..kBBBBBBBBBBk..',
+      '...kbbbbbbbbk...',
+      '...kbbbbbbbbk...',
+      '...kddddddddk...',
+      '....kk..kk......',
+      '....bb..bb......',
+      '...bbb..bbb.....',
     ],
   },
 };
@@ -671,6 +925,16 @@ function drawPlayer() {
   const spr = heroSprite(p.hero, frame, p.flash > 0);
   const ox = -Math.floor(HERO_W / 2), oy = -Math.floor(HERO_H / 2);
 
+  // 盾卫的“吨位”：脚下更宽更实的影子，站姿显得更沉
+  if (p.heroSkill === 'guard') {
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = '#08120e';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 7, 11, 4, 0, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
   // 脚下柔光，让角色从深色背景里浮起来
   ctx.fillStyle = PGLOW;
   ctx.beginPath();
@@ -684,6 +948,29 @@ function drawPlayer() {
   ctx.arc(x, y, 9, 0, TAU);
   ctx.stroke();
   ctx.globalAlpha = 1;
+
+  // 护盾：每层一圈缓慢旋转的绿色护罩，还剩几层一眼可读
+  if (p.shield > 0) {
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = '#8fd6b0';
+    ctx.beginPath();
+    ctx.arc(x, y, 13 + p.shield * 3, 0, TAU);
+    ctx.fill();
+    for (let i = 0; i < p.shield; i++) {
+      const rr = 13 + i * 3;
+      const rot = time * (1.2 + i * 0.4) + i * 1.7;
+      ctx.globalAlpha = 0.5 + 0.3 * Math.sin(time * 3 + i * 1.5);
+      ctx.strokeStyle = i === 0 ? '#b8f5d0' : '#8fd6b0';
+      ctx.lineWidth = 1;
+      for (let k = 0; k < 6; k++) {
+        const a0 = rot + (k / 6) * TAU;
+        ctx.beginPath();
+        ctx.arc(x, y, rr, a0, a0 + TAU / 6 * 0.62);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // 冲刺残影
   if (p.dashT > 0) {
@@ -894,6 +1181,11 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
+  /* 新机制地面层：涨潮水幕在实体之下，传送台与水晶也在实体之下 */
+  drawTide();
+  drawPortals();
+  drawCore();
+
   if (!player) { ctx.restore(); return; }
 
   // 边框
@@ -1087,16 +1379,17 @@ function render() {
     ctx.fillStyle = VIGNETTE;
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
+  } else if (map.id === 'reef') {
+    ctx.fillStyle = VIGNETTE_REEF;
+    ctx.fillRect(0, 0, W, H);
   } else {
     ctx.globalAlpha = diffKey === 'casual' ? 0.24 : diffKey === 'normal' ? 0.18 : 1;
     ctx.fillStyle = VIGNETTE;
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
   }
-  if (diffKey === 'hard' || map.id === 'lava') {
-    ctx.globalAlpha = map.id === 'lava' && diffKey !== 'hard'
-      ? 0.14 + 0.05 * Math.sin(time * 2.4)
-      : 0.28 + 0.09 * Math.sin(time * 2.4);
+  if (map.id === 'lava') {
+    ctx.globalAlpha = 0.14 + 0.05 * Math.sin(time * 2.4);
     ctx.fillStyle = VIGNETTE_HARD;
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;

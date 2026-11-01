@@ -101,6 +101,7 @@ function mapCardsHtml() {
       m.ice ? (m.id === 'desert' ? '流沙 ' : '冰面 ') + m.ice : null,
       m.meteor ? '陨石 ' + m.meteor + 's' : null,
       m.shock ? '电栅 ' + m.shock + 's' : null,
+      m.tide ? '涨潮收缩' : null,
     ].filter(Boolean).join(' · ');
     return (
       '<div class="shopCard' + (on ? ' on' : '') + '" role="button" tabindex="0" data-map="' + k + '">' +

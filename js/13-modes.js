@@ -5,10 +5,13 @@ let modeTab = 'tutorial';
 
 /* ---------- 文案 ---------- */
 function levelGoalText(lv) {
-  if (lv.goal === 'survive') return '撑满 ' + lv.time + ' 秒';
-  if (lv.goal === 'kills') return lv.time + ' 秒内击杀 ' + lv.kills + ' 只';
-  if (lv.goal === 'score') return lv.time + ' 秒内打满 ' + lv.scoreGoal + ' 分';
-  return lv.time + ' 秒内击败 ' + lv.bosses + ' 只 BOSS';
+  /* 组合关（比如终潮）除了主目标，还要守住水晶 */
+  const extraCore = lv.coreHp ? '，并守住水晶' : '';
+  if (lv.goal === 'survive') return '撑满 ' + lv.time + ' 秒' + extraCore;
+  if (lv.goal === 'kills') return lv.time + ' 秒内击杀 ' + lv.kills + ' 只' + extraCore;
+  if (lv.goal === 'score') return lv.time + ' 秒内打满 ' + lv.scoreGoal + ' 分' + extraCore;
+  if (lv.goal === 'defend') return '守住水晶 ' + lv.time + ' 秒';
+  return lv.time + ' 秒内击败 ' + lv.bosses + ' 只 BOSS' + extraCore;
 }
 function mapMods(m) {
   return [
@@ -18,6 +21,7 @@ function mapMods(m) {
     m.ice ? (m.id === 'desert' ? '流沙 ' : '冰面 ') + m.ice : null,
     m.meteor ? '陨石 ' + m.meteor + 's' : null,
     m.shock ? '电栅 ' + m.shock + 's' : null,
+    m.tide ? '涨潮收缩' : null,
   ].filter(Boolean).join(' · ');
 }
 

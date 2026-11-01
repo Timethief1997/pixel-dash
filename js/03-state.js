@@ -33,6 +33,13 @@ let sandT = 0;       // 荒漠图沙暴剩余时间（>0 时压低能见度）
 let sandCd = 0;      // 下一次沙暴的倒计时
 const SAND_STORM = 5.5;   // 单次沙暴持续时间（秒）
 
+/* ---------- 新机制：涨潮 / 传送门 / 守护据点 ---------- */
+const TIDE_R0 = 110, TIDE_R1 = 42, TIDE_SHRINK = 75;   // 安全圈：110 → 42，约 75 秒收完
+let tideR = 0;        // 当前安全圈半径（0 = 本图无潮）
+let core = null;      // 守护据点水晶（defend 关）
+let portals = [];     // 成对传送台
+let portalCd = 0;     // 传送冷却
+
 const keys = {};
 
 /* ---------- 游戏模式（新手教程 / 闯关 / 无尽） ---------- */
@@ -106,6 +113,22 @@ const LEVELS = [
     goal: 'score', scoreGoal: 7000, time: 150, spawnMul: 0.78, maxAdds: 3, chill: true,
     types: { chaser: 1, fast: 0.7, frost: 1.25, tank: 0.25 },
     desc: '小无尽模式：不限击杀数，只看分数。整片雪原都在结霜，霜核成群，冰锥沾身直接把人冻在原地；150 秒内打满 7000 分才算通关。' },
+  { id: 14, name: '环礁 · 涨潮', map: 'reef', col: '#4fe3d0', tag: '涨潮',
+    goal: 'survive', time: 75, spawnMul: 0.9, maxAdds: 3, tideBurn: 1.2,
+    desc: '海水从四面涌上珊瑚滩，安全圈一路收缩到脚边：圈外每 1.2 秒流失 1 点体力，敌人却毫发无损。撑满 75 秒。' },
+  { id: 15, name: '霓虹 · 回廊', map: 'neon', col: '#ff6bd6', tag: '守护',
+    goal: 'defend', time: 90, spawnMul: 0.92, maxAdds: 3, coreHp: 24,
+    desc: '中央水晶是这一关的命根：敌人六成直扑水晶，贴上去就会持续凿它，空闲时它才会慢慢回血。守住 90 秒。' },
+  { id: 16, name: '霓虹 · 穿梭', map: 'neon', col: '#ff6bd6', tag: '传送',
+    goal: 'kills', kills: 110, time: 95, portals: 1, spawnMul: 0.9, maxAdds: 3,
+    desc: '这一关只多了一对传送台：踩上去立刻出现在另一端，冷却 0.8 秒。被围住或电栅通电时，用它换一口气，95 秒内击杀 110 只。' },
+  { id: 17, name: '环礁 · 守潮', map: 'reef', col: '#4fe3d0', tag: '守护',
+    goal: 'defend', time: 90, spawnMul: 0.9, maxAdds: 3, coreHp: 22, tideBurn: 1.2,
+    desc: '第一次把两种机制叠在一起：海水一路收缩，你却离不开中间的水晶。站在安全圈里挡敌人，圈外每 1.2 秒掉 1 点体力。' },
+  { id: 18, name: '环礁 · 终潮', map: 'reef', col: '#4fe3d0', tag: '终潮',
+    goal: 'boss', bosses: 2, bossAt: 20, bossGap: 45, time: 170,
+    portals: 1, spawnMul: 1.0, maxAdds: 2, coreHp: 24, tideBurn: 1.2,
+    desc: '最后一关：涨潮、水晶、传送台与两只 BOSS 全部登场。安全圈收到底，BOSS 还在往中心挤，连落脚的地方都要算好。' },
 ];
 function campaignProgress() {
   try {
@@ -155,6 +178,15 @@ const HEROES = [
   { id: 'firefly', name: '萤火',  price: 650, medal: 0, col: '#9ef58a', tag: '灵动',
     hp: 7,  speed: 6,   dashDamage: -1, dashRadius: 1,  dashCharges: 0, rerolls: 1, skill: 'chain',
     desc: '冲刺击杀敌人会立刻返还一部分充能，越打越能连着冲；血少、单次伤害略低。' },
+  { id: 'frost',  name: '霜语',   price: 900, medal: 0, col: '#9fd8ff', tag: '冰霜',
+    hp: 7,  speed: 4,   dashDamage: 1,  dashRadius: 2,  dashCharges: 0, rerolls: 0, skill: 'chill',
+    desc: '冲刺一路落下冰晶；命中的敌人会被冻慢（速度只剩三成，持续 3.5 秒），3.5 秒内再命中同一只直接冰封 2 秒。身板偏脆，用控制换空间。' },
+  { id: 'shield', name: '盾卫',   price: 850, medal: 0, col: '#8fd6b0', tag: '守护',
+    hp: 10, speed: -8,  dashDamage: 1,  dashRadius: 3,  dashCharges: -1, rerolls: 0, skill: 'guard',
+    desc: '每 7 秒自动补 1 层护盾，最多叠 2 层，护盾会绕着你转成一圈护罩；挨打时优先碎盾。重甲让他被撞开得很少，跑得慢但站得稳。' },
+  { id: 'berserk', name: '狂徒',  price: 950, medal: 0, col: '#ff6b6b', tag: '嗜血',
+    hp: 8,  speed: -2,  dashDamage: 3,  dashRadius: 1,  dashCharges: 0, rerolls: 0, skill: 'bloodlust',
+    desc: '每击杀 1 只敌人累计 0.1 回血（10 只换 1 血），每 3 秒最多回 1 点；撞得狠，靠持续收割维持血线。' },
 ];
 
 let heroKey = 'scout';
@@ -250,8 +282,11 @@ const MAPS = {
     desc: '霓虹地砖下埋着电栅，周期性通电；敌人更快，你也要跑得更快。',
     playerSpd: 1.04, enemySpd: 1.08, rocks: 2, ice: 0, meteor: 0, snow: 0, shock: 8 },
   rain:  { id: 'rain',  name: '雨夜', tag: '打滑', col: '#8fb6ff',
-    desc: '暴雨把路面浇得发亮：起步、转向、松手都带着惯性，会滑出路线偏差；水洼处更飘。',
-    playerSpd: 0.98, enemySpd: 1, rocks: 3, ice: 5, meteor: 0, snow: 0, slip: 4.2 },
+    desc: '暴雨把路面浇得发亮：起步、转向、松手都会明显滑出去，水洼处几乎像在冰上。',
+    playerSpd: 0.98, enemySpd: 1, rocks: 3, ice: 5, meteor: 0, snow: 0, slip: 2.4 },
+  reef:  { id: 'reef',  name: '环礁', tag: '涨潮', col: '#4fe3d0',
+    desc: '澄澈的珊瑚浅滩，海水正从四周涌上来：安全圈不断收缩，圈外每秒流失 1 点体力，敌人却不受影响。',
+    playerSpd: 1.02, enemySpd: 1.02, rocks: 2, ice: 0, meteor: 0, snow: 0, tide: 1 },
 };
 let mapKey = 'plain';
 try {
@@ -436,16 +471,17 @@ function makePlayer() {
     level: 1, xp: 0, xpNext: 4,
     dashCharges: Math.max(1, st.dashCharges), dashRefill: 0,
     dashT: 0, dashDx: 1, dashDy: 0,
-    slipVx: 0, slipVy: 0,   // 雨夜打滑：惯性速度，起步/转向/松手都会滑一段
+    slipVx: 0, slipVy: 0, slipFxT: 0,   // 雨夜打滑：惯性速度 / 水花反馈计时
     returnT: 0, returnDx: 1, returnDy: 0, returnBack: false,
     hitIds: new Set(),
     dashKillCount: 0,
     shield: 0, shieldT: 0,
-    autoT: 0, trailTick: 0, emberTick: 0,
+    autoT: 0, trailTick: 0, emberTick: 0, frostTick: 0,
     healCd: 0, healBlock: 0,
     poisonT: 0,
     slowT: 0, slowMul: 1,
     freezeT: 0, lavaTick: 0,
+    guardT: 0, bloodPool: 0, tideTick: 0,
     upg: {}, stats: st,
   };
 }

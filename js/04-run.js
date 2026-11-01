@@ -22,13 +22,40 @@ function resetWorld() {
   meteorT = map.meteor > 0 ? 6 : 0;   // 熔岩图：开局 6 秒后第一颗陨石
   shockT = map.shock > 0 ? 3 : 0;     // 霓虹图：开局 3 秒后第一次通电
   sandT = 0; sandCd = map.sand > 0 ? 9 : 0;   // 荒漠图：开局 9 秒后第一阵沙暴
+  /* 新机制复位：涨潮安全圈 / 守护水晶 / 传送台 */
+  core = null; portals = []; portalCd = 0;
+  tideR = map.tide ? TIDE_R0 : 0;
   eid = 0;
   generateTerrain();
   player = makePlayer();
+  if (campaign && curLevel) {
+    /* 守护据点：只要关卡配了水晶血量（守护关 / 终潮组合关），就摆在正中 */
+    if (curLevel.coreHp) {
+      const chp = curLevel.coreHp || 24;
+      core = { x: W / 2, y: H / 2, hp: chp, maxHp: chp, r: 10, flash: 0, healT: 0 };
+      player.x = W / 2;
+      player.y = H / 2 + 44;
+    }
+    /* 成对传送台：水晶 / 岩石附近要留出落脚点 */
+    if (curLevel.portals) {
+      portals = makePortalPair();
+      terrain.rocks = terrain.rocks.filter((r) =>
+        portals.every((q) => Math.hypot(q.x - r.x, q.y - r.y) > q.r + r.r + 4) &&
+        (!core || Math.hypot(core.x - r.x, core.y - r.y) > core.r + r.r + 6));
+    }
+  }
   rerolls = 2 + (player.heroRerolls || 0);   // 每局两次换牌，幸运英雄额外加成
   resetAchRun();
   tutorial = makeTutorial(modeKey === 'tutorial');
   spawnTimer = modeKey === 'tutorial' ? 1.0 : 2.0 * diff.spawn;
+}
+
+/* 成对传送台：以水晶为中心斜对角摆放，玩家踩上去会传到另一端 */
+function makePortalPair() {
+  return [
+    { x: W / 2 - 58, y: H / 2 + 36, r: 9 },
+    { x: W / 2 + 58, y: H / 2 - 36, r: 9 },
+  ];
 }
 
 /* 进入某个模式（闯关时可指定关卡索引） */

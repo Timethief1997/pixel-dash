@@ -36,4 +36,17 @@ function loop(ts) {
 refreshBestLine();
 resetWorld();
 refreshLoadout();
+
+/* 预览入口（只影响当前这次打开，不写任何存档）：
+   ?level=N 直接开第 N 关（1 起）；?hero=frost 临时换用指定小小英雄 */
+(function previewEntry() {
+  let q = null;
+  try { q = new URLSearchParams(location.search); } catch (e) { return; }
+  if (!q) return;
+  const hero = q.get('hero');
+  const lv = Number(q.get('level'));
+  if (hero && HEROES.some((h) => h.id === hero)) heroKey = hero;
+  if (lv > 0) startMode('campaign', lv - 1);
+})();
+
 requestAnimationFrame(loop);

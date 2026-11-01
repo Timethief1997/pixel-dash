@@ -111,6 +111,67 @@ function freezePlayer(dur) {
 }
 
 /* ============================================================
+   新机制：涨潮 / 传送台 / 守护水晶
+   ============================================================ */
+/* 涨潮：安全圈从中场向外收，圈外每 tideBurn 秒流失 1 点体力（敌人不受影响） */
+function updateTide(dt) {
+  const p = player;
+  if (!p || !tideR) return;
+  if (tideR > TIDE_R1) tideR = Math.max(TIDE_R1, tideR - (TIDE_R0 - TIDE_R1) * dt / TIDE_SHRINK);
+  if (p.tideTick > 0) p.tideTick -= dt;
+  if (Math.hypot(p.x - W / 2, p.y - H / 2) <= tideR || p.tideTick > 0) return;
+
+  p.tideTick = (campaign && curLevel && curLevel.tideBurn) || 1.2;
+  p.hp -= 1;
+  p.invuln = Math.max(p.invuln, 0.4);
+  texts.push({ x: p.x, y: p.y - 10, vy: -18, life: 0.7, text: '-1 潮水', color: '#4fe3d0' });
+  burst(p.x, p.y, '#4fe3d0', 8, 62);
+  blip(210, 0.1, 'triangle', 0.05, -40);
+  shake = Math.max(shake, 3);
+  if (p.hp <= 0) { p.hp = 0; endGame(false); }
+}
+
+/* 传送台：踩上任意一端立刻送到另一端，0.8 秒冷却防止两段来回抖 */
+function updatePortals(dt) {
+  if (portalCd > 0) portalCd -= dt;
+  const p = player;
+  if (!p || !portals.length || portalCd > 0) return;
+  for (let i = 0; i < portals.length; i++) {
+    const q = portals[i];
+    if (Math.hypot(p.x - q.x, p.y - q.y) > q.r) continue;
+    const to = portals[1 - i];
+    effects.push({ x: q.x, y: q.y, r: q.r + 4, life: 0.3, max: 0.3, color: '#ff6bd6' });
+    burst(q.x, q.y, '#ff6bd6', 10, 70);
+    p.x = to.x; p.y = to.y;
+    p.invuln = Math.max(p.invuln, 0.35);
+    effects.push({ x: to.x, y: to.y, r: to.r + 4, life: 0.3, max: 0.3, color: '#7ef0ff' });
+    burst(to.x, to.y, '#7ef0ff', 12, 70);
+    texts.push({ x: to.x, y: to.y - 14, vy: -16, life: 0.7, text: '传送!', color: '#ff6bd6' });
+    blip(1080, 0.12, 'triangle', 0.05, -200);
+    blip(420, 0.1, 'sine', 0.04, 200);
+    shake = Math.max(shake, 2.5);
+    portalCd = 0.8;
+    return;
+  }
+}
+
+/* 守护水晶：受伤后每 2.5 秒自愈 1 点，凿穿即判负 */
+function updateCore(dt) {
+  if (!core) return;
+  if (core.flash > 0) core.flash -= dt;
+  if (core.hp <= 0) return;
+  if (core.hp >= core.maxHp) { core.healT = 0; return; }
+  core.healT += dt;
+  if (core.healT >= 2.5) {
+    core.healT = 0;
+    core.hp += 1;
+    effects.push({ x: core.x, y: core.y, r: core.r + 5, life: 0.28, max: 0.28, color: '#7ef0ff' });
+    texts.push({ x: core.x, y: core.y - 14, vy: -16, life: 0.6, text: '水晶 +1', color: '#7ef0ff' });
+    blip(880, 0.06, 'triangle', 0.03, 160);
+  }
+}
+
+/* ============================================================
    更新：玩家
    ============================================================ */
 function updatePlayer(dt) {
@@ -127,6 +188,12 @@ function updatePlayer(dt) {
   if (p.lavaTick > 0) p.lavaTick -= dt;
   if (p.returnT > 0) p.returnT -= dt;
 
+  /* 新机制：涨潮 / 传送台 / 守护水晶 */
+  updateTide(dt);
+  if (state !== 'playing') return;
+  updatePortals(dt);
+  updateCore(dt);
+
   // 中毒：只封锁吸血，不再持续掉血（第五关毒池压力过大，改为纯克制吸血）
   if (p.poisonT > 0) p.poisonT -= dt;
 
@@ -137,6 +204,24 @@ function updatePlayer(dt) {
       p.shieldT = 0;
       p.shield += 1;
       blip(700, 0.07, 'triangle', 0.03, 140);
+    }
+  }
+
+  /* 盾卫 · 守护：每 7 秒自动补 1 层护盾，最多 2 层 */
+  if (p.heroSkill === 'guard') {
+    if (p.shield < 2) {
+      p.guardT += dt;
+      if (p.guardT >= 7) {
+        p.guardT = 0;
+        p.shield += 1;
+        p.shieldT = 0;
+        burst(p.x, p.y, '#8fd6b0', 8, 44);
+        effects.push({ x: p.x, y: p.y, r: 11, life: 0.26, max: 0.26, color: '#8fd6b0' });
+        texts.push({ x: p.x, y: p.y - 14, vy: -16, life: 0.7, text: '护盾 +1', color: '#8fd6b0' });
+        blip(760, 0.08, 'triangle', 0.04, 180);
+      }
+    } else {
+      p.guardT = 0;
     }
   }
 
@@ -190,6 +275,22 @@ function updatePlayer(dt) {
       }
     }
 
+    // 霜语 · 冰霜：冲刺一路落下冰晶，把「冰系」的定位直接画出来
+    if (p.heroSkill === 'chill') {
+      p.frostTick -= dt;
+      if (p.frostTick <= 0) {
+        p.frostTick = 0.045;
+        for (let i = 0; i < 2; i++) {
+          particles.push({
+            x: p.x + rand(-6, 6), y: p.y + rand(-5, 5),
+            vx: rand(-10, 10), vy: rand(-26, -6),
+            life: rand(0.35, 0.6), max: 0.6,
+            color: i ? '#eaf9ff' : '#bfe8ff', size: 1,
+          });
+        }
+      }
+    }
+
     // 冲刺穿透伤害
     for (const e of enemies) {
       if (e.dead || p.hitIds.has(e.id)) continue;
@@ -202,6 +303,26 @@ function updatePlayer(dt) {
         if (p.stats.crit > 0 && Math.random() < p.stats.crit) { dmg *= 2; crit = true; }
         const killed = damageEnemy(e, dmg, p.x, p.y);
         if (crit) texts.push({ x: e.x, y: e.y - 9, vy: -22, life: 0.6, text: '暴击!', color: '#ffe066' });
+        /* 霜语 · 冰霜：第一次命中冻慢，再命中同一只直接冰封 2 秒 */
+        if (p.heroSkill === 'chill' && !killed && e.type !== 'boss') {
+          if (e.freezeT > 0) {
+            e.freezeT = Math.max(e.freezeT, 1.4);
+          } else if (e.chillT > 0) {
+            e.chillT = 0;
+            e.freezeT = 2.0;
+            burst(e.x, e.y, '#bfe8ff', 16, 62);
+            burst(e.x, e.y, '#ffffff', 5, 26);
+            effects.push({ x: e.x, y: e.y, r: 15, life: 0.34, max: 0.34, color: '#eaf9ff' });
+            texts.push({ x: e.x, y: e.y - 10, vy: -16, life: 0.8, text: '冻结!', color: '#eaf9ff' });
+            blip(1180, 0.12, 'triangle', 0.05, -420);
+          } else {
+            e.chillT = 3.5;
+            burst(e.x, e.y, '#9fd8ff', 9, 46);
+            effects.push({ x: e.x, y: e.y, r: 9, life: 0.24, max: 0.24, color: '#9fd8ff' });
+            texts.push({ x: e.x, y: e.y - 9, vy: -14, life: 0.6, text: '冻慢', color: '#bfe8ff' });
+            blip(760, 0.06, 'triangle', 0.03, 140);
+          }
+        }
         e.x += p.dashDx * 3;
         e.y += p.dashDy * 3;
         burst(e.x, e.y, '#ffffff', 4, 45);
@@ -232,17 +353,25 @@ function updatePlayer(dt) {
     // 摇杆推动幅度决定速度：轻推慢走、推满全速（键盘始终全速）
     const spd = p.stats.speed * (stickMag > 0 ? 0.45 + 0.55 * stickMag : 1) *
                 (p.slowT > 0 ? p.slowMul : 1) * map.playerSpd *
-                (ice ? 0.72 : 1);
+                (ice ? (map.slip > 0 ? 0.94 : 0.72) : 1);   // 雨夜水洼几乎不减速，只让你更滑
     if (map.slip > 0) {
       /* 雨夜打滑：实际速度向输入方向缓变，起步 / 转向 / 松手都会滑出一段，
-         产生路线偏差；水洼处响应更慢（更飘） */
-      const k = 1 - Math.exp(-map.slip * (ice ? 0.55 : 1) * dt);
+         产生路线偏差；水洼处响应更慢（几乎像冰面） */
+      const k = 1 - Math.exp(-map.slip * (ice ? 0.5 : 1) * dt);
       const tx = ix ? (ix / m) * spd : 0;
       const ty = iy ? (iy / m) * spd : 0;
       p.slipVx += (tx - p.slipVx) * k;
       p.slipVy += (ty - p.slipVy) * k;
       p.x += p.slipVx * dt;
       p.y += p.slipVy * dt;
+      /* 打滑反馈：脚下溅起水花，让“滑”看得见 */
+      p.slipFxT -= dt;
+      const vs = Math.hypot(p.slipVx, p.slipVy);
+      const dv = Math.hypot(p.slipVx - tx, p.slipVy - ty);
+      if (p.slipFxT <= 0 && vs > 14 && dv > (ix || iy ? 18 : 10)) {
+        p.slipFxT = 0.12;
+        waterSpray(p, vs);
+      }
     } else {
       p.x += (ix / m) * spd * dt * (ix || iy ? 1 : 0);
       p.y += (iy / m) * spd * dt * (ix || iy ? 1 : 0);
@@ -364,6 +493,19 @@ function killEnemy(e) {
   if (e.dead) return;
   e.dead = true;
   kills += 1;
+  /* 狂徒 · 嗜血：每次击杀累计 0.1 回血，攒满 1 点兑现，每 3 秒最多回 1 点 */
+  const bl = player;
+  if (bl && bl.heroSkill === 'bloodlust' && bl.hp > 0) {
+    bl.bloodPool = Math.min(1, bl.bloodPool + 0.1);
+    if (bl.bloodPool >= 0.999 && bl.healCd <= 0 && bl.healBlock <= 0 && bl.hp < bl.maxHp) {
+      bl.bloodPool = 0;
+      bl.healCd = 3;
+      bl.hp = Math.min(bl.maxHp, bl.hp + 1);
+      texts.push({ x: bl.x, y: bl.y - 10, vy: -18, life: 0.7, text: '+1 嗜血', color: '#ff8a8a' });
+      burst(bl.x, bl.y, '#ff6b6b', 6, 42);
+      blip(520, 0.07, 'triangle', 0.04, 120);
+    }
+  }
   /* 成就追踪：击杀数 / 精英 / BOSS / 3 秒连杀窗口 */
   if (achRun) {
     achRun.kills += 1;
@@ -507,8 +649,9 @@ function hitPlayer(src) {
     shake = Math.max(shake, 5);
     screenFlash = 0.16;
     blip(420, 0.12, 'triangle', 0.075, 120);
-    burst(p.x, p.y, '#7ef0ff', 10, 60);
-    texts.push({ x: p.x, y: p.y - 12, vy: -20, life: 0.6, text: '护盾抵挡', color: '#7ef0ff' });
+    burst(p.x, p.y, '#b8f5d0', 12, 62);
+    effects.push({ x: p.x, y: p.y, r: 15, life: 0.3, max: 0.3, color: '#b8f5d0' });
+    texts.push({ x: p.x, y: p.y - 12, vy: -20, life: 0.6, text: '护盾抵挡', color: '#b8f5d0' });
     if (src.type) {
       src.x = clamp(src.x - dx / d * 11, src.r, W - src.r);
       src.y = clamp(src.y - dy / d * 11, src.r, H - src.r);
@@ -526,8 +669,10 @@ function hitPlayer(src) {
   blip(95, 0.2, 'sawtooth', 0.09, -35);
   burst(p.x, p.y, '#ff4d6d', 10, 70);
 
-  p.x = clamp(p.x + dx / d * 9, 6, W - 6);
-  p.y = clamp(p.y + dy / d * 9, 6, H - 6);
+  /* 盾卫重甲：被撞开得更少，站得住 */
+  const kb = p.heroSkill === 'guard' ? 3 : 9;
+  p.x = clamp(p.x + dx / d * kb, 6, W - 6);
+  p.y = clamp(p.y + dy / d * kb, 6, H - 6);
 
   // 撞到玩家的敌人被弹开，避免贴脸连续扣血
   if (src.type) {
@@ -564,6 +709,9 @@ function spawnEnemy(type, x, y, plain) {
   if (type === 'boss') pts *= 1 + 0.35 * Math.max(0, bossGen - 1);
   if (affix === 'shield') pts *= 1.25;
   pts = Math.max(1, Math.round(pts));
+  /* 守护关：近战杂兵六成直扑水晶，远程 / 自爆仍盯着玩家 */
+  const ranged = type === 'shooter' || type === 'poisoner' || type === 'frost' || type === 'bomber';
+  const tc = core && type !== 'boss' && !ranged && Math.random() < 0.6 ? 'core' : 'player';
   enemies.push({
     id: ++eid, type, x, y, hp, maxHp: hp, pts,
     r: t.r, speed: t.speed * spMul * map.enemySpd,
@@ -571,6 +719,7 @@ function spawnEnemy(type, x, y, plain) {
     flash: 0, auraT: 0, fireT: 0, bossT: 0,
     lungeT: 0, boost: 0, chargeT: 1.2, bossStep: 0, fuseT: 0,
     affix, gen: type === 'boss' ? bossGen : 0, dead: false,
+    tc, chillT: 0, freezeT: 0, coreTick: 0,
   });
 
   // 图鉴解锁：基础怪、精英词缀、BOSS 世代各自登记（分裂产物不算图鉴遭遇）
@@ -603,19 +752,32 @@ function updateEnemies(dt) {
     if (e.dead) continue;
     if (e.flash > 0) e.flash -= dt;
 
-    const dx = player.x - e.x, dy = player.y - e.y;
+    if (e.chillT > 0) e.chillT -= dt;
+    if (e.freezeT > 0) e.freezeT -= dt;
+    if (e.coreTick > 0) e.coreTick -= dt;
+    const frozen = e.freezeT > 0;
+
+    /* 守护关：部分杂兵以水晶为目标；其余仍追玩家 */
+    const tgtCore = e.tc === 'core' && core && core.hp > 0;
+    const tx = tgtCore ? core.x : player.x;
+    const ty = tgtCore ? core.y : player.y;
+    const dx = tx - e.x, dy = ty - e.y;
     const d = Math.hypot(dx, dy) || 1;
     const ux = dx / d, uy = dy / d;
-    const slow = player.stats.slowR > 0 && d < player.stats.slowR ? player.stats.slowFactor : 1;
+    const pd = Math.hypot(player.x - e.x, player.y - e.y);
+    const slow = (player.stats.slowR > 0 && pd < player.stats.slowR ? player.stats.slowFactor : 1) *
+                 (e.chillT > 0 ? 0.30 : 1);   // 霜语冻慢：只剩三成速度
     const fz = frenzyT > 0 ? 1.25 : 1;
 
     // 腐蚀词缀：光环范围内封锁吸血并持续中毒
-    if (e.affix === 'corrupt' && d < 30) {
+    if (e.affix === 'corrupt' && pd < 30) {
       applyHealBlock(0.35);
       if (player.poisonT <= 0.2) applyPoison(2.2);
     }
 
-    if (e.type === 'shooter') {
+    if (frozen) {
+      // 被霜语冻住：原地不动、不出手，接触伤害仍照常结算
+    } else if (e.type === 'shooter') {
       if (d > 78) { e.x += ux * e.speed * dt * slow * fz; e.y += uy * e.speed * dt * slow * fz; }
       else if (d < 48) { e.x -= ux * e.speed * dt * 0.9 * slow * fz; e.y -= uy * e.speed * dt * 0.9 * slow * fz; }
       else { e.x += -uy * e.speed * dt * 0.7 * slow * fz; e.y += ux * e.speed * dt * 0.7 * slow * fz; }
@@ -798,6 +960,27 @@ function updateEnemies(dt) {
 
     e.x = clamp(e.x, e.r, W - e.r);
     e.y = clamp(e.y, e.r, H - e.r);
+
+    /* 贴住水晶的敌人每秒凿掉 1 点；凿穿即判负 */
+    if (tgtCore && !frozen && Math.hypot(e.x - core.x, e.y - core.y) < core.r + e.r + 2 && e.coreTick <= 0) {
+      e.coreTick = 1;
+      core.hp -= 1;
+      core.flash = 0.14;
+      effects.push({ x: core.x, y: core.y, r: core.r + 3, life: 0.24, max: 0.24, color: '#ff5d6c' });
+      burst(core.x + rand(-3, 3), core.y + rand(-3, 3), '#7ef0ff', 6, 40);
+      texts.push({ x: core.x, y: core.y - 12, vy: -14, life: 0.6, text: '-1 水晶', color: '#ff8a8a' });
+      blip(240, 0.08, 'sawtooth', 0.04, -50);
+      shake = Math.max(shake, 2.5);
+      if (core.hp <= 0) {
+        core.hp = 0;
+        effects.push({ x: core.x, y: core.y, r: 30, life: 0.4, max: 0.4, color: '#7ef0ff' });
+        burst(core.x, core.y, '#7ef0ff', 24, 100);
+        screenFlash = 0.4;
+        shake = Math.max(shake, 9);
+        endGame(false);
+        return;
+      }
+    }
 
     // 接触伤害
     if (player.invuln <= 0 && player.dashT <= 0) {
@@ -1089,6 +1272,25 @@ function burst(x, y, color, n, speed) {
       vx: Math.cos(a) * s, vy: Math.sin(a) * s,
       life: rand(0.15, 0.5), max: 0.5,
       color, size: irand(1, 2),
+    });
+  }
+}
+
+/* 打滑时脚下溅起的水花：往速度反方向甩，给“滑出去”一个可读的反馈 */
+function waterSpray(p, vs) {
+  const a = Math.atan2(p.slipVy, p.slipVx);
+  const back = Math.min(1, vs / 62);
+  for (let i = 0; i < 3; i++) {
+    const dir = a + Math.PI + rand(-0.55, 0.55);
+    const s = rand(14, 34) * back;
+    particles.push({
+      x: p.x - Math.cos(a) * 4 + rand(-2, 2),
+      y: p.y - Math.sin(a) * 4 + rand(-2, 2) + 2,
+      vx: Math.cos(dir) * s,
+      vy: Math.sin(dir) * s - rand(2, 8),
+      life: rand(0.22, 0.42), max: 0.42,
+      color: i % 2 ? '#cfe6ff' : '#9fc4ff',
+      size: 1,
     });
   }
 }
