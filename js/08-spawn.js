@@ -74,8 +74,12 @@ function updateSpawn(dt) {
   if (spawnTimer <= 0) {
     if (campaign) {
       // 闯关节奏更稳：目标优先于淹没感
-      spawnTimer = Math.max(0.55, 1.15 - time * 0.006) * diff.spawn;
+      /* 关卡可单独放宽刷怪：spawnMul 拉长间隔、maxAdds 限制每批数量 */
+      const lv = curLevel;
+      const mul = lv && lv.spawnMul ? lv.spawnMul : 1;
+      spawnTimer = Math.max(0.55, 1.15 - time * 0.006) * mul * diff.spawn;
       let n = Math.min(4, 1 + Math.floor(time / 30));
+      if (lv && lv.maxAdds) n = Math.min(n, lv.maxAdds);
       if (enemies.length > 120) n = 0;
       for (let i = 0; i < n; i++) spawnAtEdge(pickType());
     } else {
