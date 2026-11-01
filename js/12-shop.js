@@ -56,7 +56,7 @@ function heroStatLine(h) {
 
 function heroCardsHtml() {
   const total = loadCoins();
-  return HEROES.map((h) => {
+  return HEROES.filter((h) => !h.medalOnly).map((h) => {
     const owned = heroOwned(h.id);
     const on = heroKey === h.id;
     const btn = on ? '出 战 中' : owned ? '装 备' : (total >= h.price ? '购买 · ' + h.price : '还需 ' + (h.price - total) + ' 金币');
@@ -83,7 +83,7 @@ function heroCardsHtml() {
 
 function medalCardsHtml() {
   const bal = medalBalance();
-  return HEROES.map((h) => {
+  return HEROES.filter((h) => h.medalOnly).map((h) => {
     const owned = heroOwned(h.id);
     const on = heroKey === h.id;
     const cost = h.medal || 0;
@@ -158,10 +158,10 @@ function renderShop() {
   if (tip) {
     tip.textContent =
       shopTab === 'medal'
-        ? '勋章上限 ' + MEDAL_CAP + ' 枚 · 每名英雄限兑 1 次 · 由成就奖励发放'
+        ? '勋章上限 ' + MEDAL_CAP + ' 枚 · 仅忍者可用勋章兑换（1/1）· 由成就奖励发放'
         : shopTab === 'map'
           ? '地图只影响无尽模式；闯关地图由关卡决定'
-          : '金币来自局中拾取与结算，购买后永久解锁；也可用勋章兑换';
+          : '金币来自局中拾取与结算，购买后永久解锁；忍者需在勋章页兑换';
   }
 
   /* 英雄立绘：和场上小人共用同一份 14×14 像素画 */

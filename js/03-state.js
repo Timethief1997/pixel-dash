@@ -106,25 +106,25 @@ const HEROES = [
   { id: 'scout',  name: '小勇',   price: 0,   medal: 0, col: '#63d9ff', tag: '均衡',
     hp: 8,  speed: 0,   dashDamage: 0,  dashRadius: 0, dashCharges: 0, rerolls: 0, skill: 'none',
     desc: '标准身板：冲刺伤害与充能都居中，第一次冒险就从这里开始。' },
-  { id: 'guanyu', name: '关羽',   price: 600, medal: 4, col: '#ff6b7a', tag: '斩击',
+  { id: 'guanyu', name: '关羽',   price: 600, medal: 0, col: '#ff6b7a', tag: '斩击',
     hp: 7,  speed: 2,   dashDamage: 2,  dashRadius: 2, dashCharges: 0, rerolls: 0, skill: 'slash',
     desc: '冲刺结束挥出一圈刀光，额外斩击周围敌人；血少一点，斩得狠一点。' },
-  { id: 'truck',  name: '泥头车', price: 450, medal: 3, col: '#ffb15c', tag: '重装',
+  { id: 'truck',  name: '泥头车', price: 450, medal: 0, col: '#ffb15c', tag: '重装',
     hp: 11, speed: -14, dashDamage: 3,  dashRadius: 5, dashCharges: -1, rerolls: 0, skill: 'crush',
     desc: '血厚、撞得狠、冲刺范围大，但跑得慢，充能少一次。' },
-  { id: 'moto',   name: '摩托',   price: 800, medal: 5, col: '#9ef58a', tag: '极速',
+  { id: 'moto',   name: '摩托',   price: 800, medal: 0, col: '#9ef58a', tag: '极速',
     hp: 6,  speed: 18,  dashDamage: -1, dashRadius: -2, dashCharges: 1, rerolls: 0, skill: 'rush',
     desc: '跑得最快，多一次冲刺充能；身板很脆，撞一下就得记路。' },
-  { id: 'diaper', name: '尿不湿', price: 300, medal: 2, col: '#ffd76a', tag: '幸运',
+  { id: 'diaper', name: '尿不湿', price: 300, medal: 0, col: '#ffd76a', tag: '幸运',
     hp: 10, speed: -4,  dashDamage: 0,  dashRadius: 0, dashCharges: 0, rerolls: 2, skill: 'lucky',
     desc: '又厚又软：血多、每局多 2 次换牌机会，冲刺偏弱但很能苟。' },
-  { id: 'ninja',  name: '忍者',   price: 900, medal: 6, col: '#7ef0ff', tag: '潜行',
+  { id: 'ninja',  name: '忍者',   price: 0,   medal: 30, medalOnly: true, col: '#7ef0ff', tag: '潜行',
     hp: 5,  speed: 12,  dashDamage: 1,  dashRadius: -2, dashCharges: 1, rerolls: 0, skill: 'blink',
     desc: '跑得最快，多一次冲刺；冲刺能直接穿过岩石，落地后还多 0.25 秒无敌。血薄，全靠位移躲。' },
-  { id: 'smith',  name: '铁匠',   price: 750, medal: 5, col: '#ff9a3c', tag: '熔锻',
+  { id: 'smith',  name: '铁匠',   price: 750, medal: 0, col: '#ff9a3c', tag: '熔锻',
     hp: 9,  speed: -6,  dashDamage: 2,  dashRadius: 1,  dashCharges: 0, rerolls: 0, skill: 'ember',
     desc: '冲刺沿途自动留下灼烧余烬（相当于自带一级火焰尾迹），撞得狠；跑得慢，要靠预判冲刺。' },
-  { id: 'firefly', name: '萤火',  price: 650, medal: 4, col: '#9ef58a', tag: '灵动',
+  { id: 'firefly', name: '萤火',  price: 650, medal: 0, col: '#9ef58a', tag: '灵动',
     hp: 7,  speed: 6,   dashDamage: -1, dashRadius: 1,  dashCharges: 0, rerolls: 1, skill: 'chain',
     desc: '冲刺击杀敌人会立刻返还一部分充能，越打越能连着冲；血少、单次伤害略低。' },
 ];
@@ -158,6 +158,7 @@ function buyHero(id) {
   const h = HEROES.find((x) => x.id === id);
   if (!h) return false;
   if (heroOwned(id)) return equipHero(id);
+  if (h.medalOnly) { toast(h.name + ' 只能用勋章兑换'); return false; }
   const total = loadCoins();
   if (total < h.price) {
     toast('金币不足 · 还差 ' + (h.price - total) + ' 金币');
@@ -176,11 +177,12 @@ function buyHero(id) {
   return true;
 }
 
-/* 勋章兑换：勋章上限与「每名英雄限兑 1 次」都由这里的库存判断兜底 */
+/* 勋章兑换：仅限 medalOnly 英雄；勋章上限与库存 1/1 都由这里兜底 */
 function exchangeHero(id) {
   const h = HEROES.find((x) => x.id === id);
   if (!h) return false;
   if (heroOwned(id)) return equipHero(id);
+  if (!h.medalOnly) { toast('该英雄请用金币购买'); return false; }
   const cost = h.medal || 0;
   if (cost <= 0) { toast('该英雄不需要勋章兑换'); return false; }
   const bal = medalBalance();
