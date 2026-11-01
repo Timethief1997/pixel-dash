@@ -132,6 +132,7 @@ function startGame() {
   resetWorld();
   hideLayers();
   state = 'playing';
+  startRunBgm();
   renderTut();
   audio();
   lastTs = performance.now();
@@ -143,6 +144,7 @@ function startGame() {
 function goMenu() {
   bankCoins();
   state = 'menu';
+  stopBgm();
   endless = false;
   campaign = false;
   curLevel = null;

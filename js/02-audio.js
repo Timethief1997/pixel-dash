@@ -48,3 +48,41 @@ function blip(freq, dur, type, vol, slide) {
   } catch (e) {}
 }
 
+/* 敲木头：一是低频木腔共鸣，二是短噪声的干涩撞击声，合成一次后复用 */
+let knockBuf = null;
+function woodKnock() {
+  if (muted) return;
+  const a = audio(); if (!a) return;
+  if (a.state === 'suspended') resumeAudio(a);
+  try {
+    const t = a.currentTime;
+    const v = clamp(0.032 * SFX_GAIN, 0, 1);
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(210, t);
+    o.frequency.exponentialRampToValueAtTime(96, t + 0.075);
+    g.gain.setValueAtTime(v, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.10);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t + 0.11);
+
+    if (!knockBuf) {
+      knockBuf = a.createBuffer(1, Math.max(64, Math.ceil(a.sampleRate * 0.06)), a.sampleRate);
+      const d = knockBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) {
+        const k = 1 - i / d.length;
+        d[i] = (Math.random() * 2 - 1) * k * k;
+      }
+    }
+    const src = a.createBufferSource(), lp = a.createBiquadFilter(), ng = a.createGain();
+    src.buffer = knockBuf;
+    lp.type = 'lowpass';
+    lp.frequency.value = 1200;
+    lp.Q.value = 0.8;
+    ng.gain.setValueAtTime(v * 0.9, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    src.connect(lp); lp.connect(ng); ng.connect(a.destination);
+    src.start(t); src.stop(t + 0.08);
+  } catch (e) {}
+}
+
