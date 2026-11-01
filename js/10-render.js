@@ -650,34 +650,25 @@ function render() {
     ctx.translate(irand(-1, 1) * Math.min(3, shake * 0.6), irand(-1, 1) * Math.min(3, shake * 0.6));
   }
 
-  // 背景（按难度主题）
+  // 背景（按地图主题：草原 / 雪原 / 熔岩，见 01-core.js 的 bakeSnow / bakeLava）
   drawBackdrop();
-
-  // 地图环境：雪原风雪与冰面 / 熔岩热浪
-  if (map.id === 'snow') {
-    ctx.fillStyle = 'rgba(190,226,255,.10)';
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#eaf6ff';
-    for (let i = 0; i < 34; i++) {
-      const x = ((i * 97 + time * (14 + (i % 4) * 5)) % (W + 8)) - 4;
-      const y = ((i * 61 + time * 24) % (H + 8)) - 4;
-      ctx.globalAlpha = 0.25 + 0.25 * ((i % 5) / 5);
-      ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
-    }
-    ctx.globalAlpha = 1;
-  } else if (map.id === 'lava') {
-    ctx.fillStyle = 'rgba(255,94,32,.07)';
-    ctx.fillRect(0, 0, W, H);
-  }
 
   // 冰面：淡蓝椭圆，踩上去明显变慢
   for (const i of terrain.ice) {
-    ctx.globalAlpha = 0.30;
-    ctx.fillStyle = '#bfe9ff';
+    // 雪原冰面：更实的冰蓝 + 冷白高光，亮底图上也能明显读出来
+    const onSnow = map.id === 'snow';
+    ctx.globalAlpha = onSnow ? 0.5 : 0.30;
+    ctx.fillStyle = onSnow ? '#9fd4f2' : '#bfe9ff';
     ctx.beginPath();
     ctx.ellipse(i.x, i.y, i.r, i.r * 0.62, 0, 0, TAU);
     ctx.fill();
-    ctx.globalAlpha = 0.16;
+    ctx.globalAlpha = onSnow ? 0.34 : 0.16;
+    ctx.strokeStyle = onSnow ? '#f0fbff' : '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(i.x, i.y, i.r, i.r * 0.62, 0, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = onSnow ? 0.26 : 0.16;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.ellipse(i.x - 2, i.y - 2, i.r * 0.66, i.r * 0.36, 0, 0, TAU);
@@ -685,17 +676,17 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
-  // 岩石：阴影 + 主体 + 顶部高光
+  // 岩石：阴影 + 主体 + 顶部高光（雪原雪盖 / 熔岩焦岩）
   for (const r of terrain.rocks) {
     ctx.fillStyle = 'rgba(0,0,0,.30)';
     ctx.beginPath();
     ctx.ellipse(r.x + 1, r.y + 3, r.r, r.r * 0.55, 0, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = map.id === 'snow' ? '#8fa3b8' : '#4a3a3a';
+    ctx.fillStyle = map.id === 'snow' ? '#8fa3b8' : '#3d2b28';
     ctx.beginPath();
     ctx.arc(r.x, r.y, r.r, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = map.id === 'snow' ? '#c6d6e4' : '#6b4a3a';
+    ctx.fillStyle = map.id === 'snow' ? '#c6d6e4' : '#7d4630';
     ctx.fillRect(Math.round(r.x - r.r / 2), Math.round(r.y - r.r / 2), Math.max(2, Math.round(r.r)), 2);
   }
 
@@ -886,13 +877,20 @@ function render() {
 
   ctx.restore();
 
-  // 暗角（硬核压暗并带红色呼吸）
-  ctx.globalAlpha = diffKey === 'casual' ? 0.24 : diffKey === 'normal' ? 0.18 : 1;
-  ctx.fillStyle = VIGNETTE;
-  ctx.fillRect(0, 0, W, H);
-  ctx.globalAlpha = 1;
-  if (diffKey === 'hard') {
-    ctx.globalAlpha = 0.28 + 0.09 * Math.sin(time * 2.4);
+  // 暗角：雪原用冷蓝边，熔岩带红色呼吸，其余按难度
+  if (map.id === 'snow') {
+    ctx.fillStyle = VIGNETTE_SNOW;
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    ctx.globalAlpha = diffKey === 'casual' ? 0.24 : diffKey === 'normal' ? 0.18 : 1;
+    ctx.fillStyle = VIGNETTE;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  if (diffKey === 'hard' || map.id === 'lava') {
+    ctx.globalAlpha = map.id === 'lava' && diffKey !== 'hard'
+      ? 0.14 + 0.05 * Math.sin(time * 2.4)
+      : 0.28 + 0.09 * Math.sin(time * 2.4);
     ctx.fillStyle = VIGNETTE_HARD;
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;

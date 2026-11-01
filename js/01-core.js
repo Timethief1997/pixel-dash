@@ -30,6 +30,9 @@ VIGNETTE.addColorStop(1, 'rgba(0,0,0,.5)');
 const VIGNETTE_HARD = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 190);
 VIGNETTE_HARD.addColorStop(0, 'rgba(0,0,0,0)');
 VIGNETTE_HARD.addColorStop(1, 'rgba(120,10,32,.62)');
+const VIGNETTE_SNOW = ctx.createRadialGradient(W / 2, H / 2, 58, W / 2, H / 2, 198);
+VIGNETTE_SNOW.addColorStop(0, 'rgba(28,54,88,0)');
+VIGNETTE_SNOW.addColorStop(1, 'rgba(28,54,88,.34)');
 const PGLOW = ctx.createRadialGradient(0, 0, 1, 0, 0, 24);
 PGLOW.addColorStop(0, 'rgba(120,215,255,.16)');
 PGLOW.addColorStop(1, 'rgba(120,215,255,0)');
@@ -141,6 +144,8 @@ function getScene(key) {
   g.imageSmoothingEnabled = false;
   if (key === 'casual') bakeCasual(g);
   else if (key === 'hard') bakeHard(g);
+  else if (key === 'snow') bakeSnow(g);
+  else if (key === 'lava') bakeLava(g);
   else bakeNormal(g);
   SCENE[key] = c;
   return c;
@@ -720,7 +725,224 @@ function bakeCasual(g) {
   }
 }
 
+/* ---------- 雪原：冰封白蓝雪地（烘焙底图） ---------- */
+function bakeSnow(g) {
+  const r = lcg(20201124);
+
+  // 底色：冷白偏蓝，上亮下暗，像被天光照着的雪面
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#f2f9ff');
+  bg.addColorStop(0.35, '#e4f2ff');
+  bg.addColorStop(0.7, '#d3e6f9');
+  bg.addColorStop(1, '#bcd5ee');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+
+  // 天光：左上冷白高光，给雪面一个明确亮源
+  const sky = g.createRadialGradient(52, -18, 6, 78, 26, 210);
+  sky.addColorStop(0, 'rgba(255,255,255,.42)');
+  sky.addColorStop(0.42, 'rgba(226,244,255,.18)');
+  sky.addColorStop(1, 'rgba(190,222,255,0)');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, W, H);
+
+  // 右下冷蓝阴影：做纵深
+  const cool = g.createRadialGradient(W - 20, H + 6, 14, W - 20, H + 6, 165);
+  cool.addColorStop(0, 'rgba(86,120,168,.16)');
+  cool.addColorStop(0.55, 'rgba(86,120,168,.06)');
+  cool.addColorStop(1, 'rgba(86,120,168,0)');
+  g.fillStyle = cool;
+  g.fillRect(0, 0, W, H);
+
+  // 雪丘：扁椭圆，背光压蓝、受光提白
+  for (let i = 0; i < 46; i++) {
+    const cx = r() * W, cy = 6 + r() * (H - 12);
+    const rx = 10 + r() * 22, ry = 3 + r() * 6;
+    g.save();
+    g.translate(cx, cy);
+    g.scale(1, ry / rx);
+    const sg = g.createRadialGradient(rx * 0.25, ry * 0.2, 1, 0, 0, rx);
+    sg.addColorStop(0, 'rgba(150,182,216,.16)');
+    sg.addColorStop(1, 'rgba(150,182,216,0)');
+    g.fillStyle = sg;
+    g.fillRect(-rx, -rx, rx * 2, rx * 2);
+    g.fillStyle = 'rgba(255,255,255,.32)';
+    g.fillRect(-rx * 0.55, -ry * 0.42, rx * 1.1, 1);
+    g.restore();
+  }
+
+  // 风吹雪纹：同向细长斜线，读作 sastrugi（雪垄）
+  for (let i = 0; i < 92; i++) {
+    const x = r() * W, y = r() * H, len = 4 + r() * 12;
+    const lean = r() < 0.5 ? 1 : -1;
+    g.fillStyle = r() < 0.6 ? 'rgba(255,255,255,.34)' : 'rgba(158,192,226,.20)';
+    for (let k = 0; k < len; k++) {
+      g.fillRect(Math.round(x + k), Math.round(y + lean * Math.floor(k / 3)), 1, 1);
+    }
+  }
+
+  // 雪面浅凹：短弧阴影，避免纯白平板
+  for (let i = 0; i < 26; i++) {
+    const x = 3 + r() * (W - 6), y = 6 + r() * (H - 12);
+    g.fillStyle = 'rgba(140,176,214,.13)';
+    g.fillRect(Math.round(x), Math.round(y), 3 + Math.floor(r() * 4), 1);
+  }
+
+  // 冰晶反光：阳光打在雪粒上的小白点 / 冰蓝点
+  for (let i = 0; i < 320; i++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * H);
+    g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,.78)' : 'rgba(214,244,255,.55)';
+    g.fillRect(x, y, 1, 1);
+  }
+
+  // 稀疏裸露砾石：冷灰小块，让纯白有层次
+  for (let i = 0; i < 18; i++) {
+    const x = 3 + Math.floor(r() * (W - 6)), y = 6 + Math.floor(r() * (H - 12));
+    g.fillStyle = 'rgba(120,140,166,.18)';
+    g.fillRect(x, y, 2, 1);
+    g.fillStyle = 'rgba(255,255,255,.5)';
+    g.fillRect(x, y - 1, 1, 1);
+  }
+
+  // 底部积雪压暗
+  const bot = g.createLinearGradient(0, H - 26, 0, H);
+  bot.addColorStop(0, 'rgba(120,156,196,0)');
+  bot.addColorStop(1, 'rgba(96,132,176,.16)');
+  g.fillStyle = bot;
+  g.fillRect(0, H - 26, W, 26);
+
+  // 四周冷边
+  g.fillStyle = 'rgba(72,104,142,.18)';
+  g.fillRect(0, 0, W, 2); g.fillRect(0, H - 2, W, 2);
+  g.fillRect(0, 0, 2, H); g.fillRect(W - 2, 0, 2, H);
+}
+
+/* ---------- 熔岩：黑曜玄武岩 + 熔光裂隙（烘焙底图） ---------- */
+function bakeLava(g) {
+  const r = lcg(90210);
+
+  // 玄武岩底色：黑褐，顶部受热偏红
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#2a1715');
+  bg.addColorStop(0.4, '#1c0f0e');
+  bg.addColorStop(0.75, '#140a09');
+  bg.addColorStop(1, '#0c0606');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+
+  // 冷却岩壳：大块暗斑 + 受热边
+  for (let i = 0; i < 34; i++) {
+    const cx = r() * W, cy = r() * H, rx = 8 + r() * 18, ry = 5 + r() * 10;
+    g.save();
+    g.translate(cx, cy);
+    g.scale(1, ry / rx);
+    g.fillStyle = r() < 0.55 ? 'rgba(48,26,22,.35)' : 'rgba(6,2,2,.45)';
+    g.fillRect(-rx, -rx, rx * 2, rx * 2);
+    g.fillStyle = 'rgba(120,58,36,.10)';
+    g.fillRect(-rx * 0.6, -rx * 0.6, rx * 1.2, 1);
+    g.restore();
+  }
+
+  // 灰烬颗粒
+  for (let i = 0; i < 2400; i++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * H);
+    g.fillStyle = r() < 0.6 ? 'rgba(0,0,0,.16)' : 'rgba(200,150,120,.035)';
+    g.fillRect(x, y, 1, 1);
+  }
+
+  // 火山砾石：暗岩 + 受热上沿
+  for (let i = 0; i < 90; i++) {
+    const x = 3 + Math.floor(r() * (W - 6)), y = 6 + Math.floor(r() * (H - 12));
+    g.fillStyle = 'rgba(4,2,2,.6)';
+    g.fillRect(x, y + 1, 2, 1);
+    g.fillStyle = r() < 0.5 ? '#331d18' : '#40241d';
+    g.fillRect(x, y, 2, 1);
+    g.fillStyle = 'rgba(255,120,60,.16)';
+    g.fillRect(x, y, 1, 1);
+  }
+
+  // 熔岩裂隙：固定脉络，炭化边 + 黑槽 + 分级熔光（亮芯由动态层呼吸）
+  g.fillStyle = 'rgba(40,14,10,.5)';
+  for (const p of FISS_PIX) g.fillRect(p[0] - 1, p[1] - 1, 3, 3);
+  g.fillStyle = '#050202';
+  for (const p of FISS_PIX) g.fillRect(p[0], p[1], 1, 1);
+  g.fillStyle = 'rgba(255,84,36,.06)';
+  for (const p of FISS_HI) g.fillRect(p[0] - 2, p[1] - 2, 5, 5);
+  g.fillStyle = 'rgba(255,98,40,.26)';
+  for (const p of FISS_PIX) g.fillRect(p[0], p[1], 1, 1);
+  g.fillStyle = 'rgba(255,132,56,.44)';
+  for (const p of FISS_HI) g.fillRect(p[0], p[1], 1, 1);
+
+  // 地心热光：底部中央橙红
+  const hg = g.createRadialGradient(W * 0.5, H * 0.86, 8, W * 0.5, H * 0.86, 185);
+  hg.addColorStop(0, 'rgba(255,108,44,.26)');
+  hg.addColorStop(0.42, 'rgba(214,58,18,.10)');
+  hg.addColorStop(1, 'rgba(110,16,8,0)');
+  g.fillStyle = hg;
+  g.fillRect(0, 0, W, H);
+
+  // 顶部压暗
+  const tg = g.createLinearGradient(0, 0, 0, 66);
+  tg.addColorStop(0, 'rgba(6,2,3,.6)');
+  tg.addColorStop(1, 'rgba(6,2,3,0)');
+  g.fillStyle = tg;
+  g.fillRect(0, 0, W, 66);
+
+  // 四周压边 + 热光描边
+  g.fillStyle = '#050202';
+  g.fillRect(0, 0, W, 2); g.fillRect(0, H - 2, W, 2);
+  g.fillRect(0, 0, 2, H); g.fillRect(W - 2, 0, 2, H);
+  g.fillStyle = 'rgba(255,120,60,.18)';
+  g.fillRect(0, 2, W, 1); g.fillRect(0, H - 3, W, 1);
+  g.fillRect(2, 0, 1, H); g.fillRect(W - 3, 0, 1, H);
+}
+
 function drawBackdrop() {
+  if (map.id === 'snow') {
+    ctx.drawImage(getScene('snow'), 0, 0);
+    // 风雪：整体冷白薄雾，随时间轻微明暗
+    ctx.globalAlpha = 0.10 + 0.04 * Math.sin(time * 0.7);
+    ctx.fillStyle = 'rgba(210,236,255,.55)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    // 飘雪点：斜向吹过
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 42; i++) {
+      const x = ((i * 97 + time * (16 + (i % 4) * 6)) % (W + 8)) - 4;
+      const y = ((i * 61 + time * 26) % (H + 8)) - 4;
+      ctx.globalAlpha = 0.3 + 0.3 * ((i % 5) / 5);
+      ctx.fillRect(Math.round(x), Math.round(y), i % 9 === 0 ? 2 : 1, 1);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+  if (map.id === 'lava') {
+    ctx.drawImage(getScene('lava'), 0, 0);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
+    // 裂隙亮芯：分级呼吸
+    ctx.fillStyle = 'rgba(255,88,36,' + (0.18 + 0.12 * pulse).toFixed(3) + ')';
+    for (const p of FISS_LO) ctx.fillRect(p[0], p[1], 1, 1);
+    ctx.fillStyle = 'rgba(255,110,44,' + (0.26 + 0.16 * pulse).toFixed(3) + ')';
+    for (const p of FISS_MID) ctx.fillRect(p[0], p[1], 1, 1);
+    ctx.fillStyle = 'rgba(255,146,60,' + (0.38 + 0.20 * pulse).toFixed(3) + ')';
+    for (const p of FISS_HI) ctx.fillRect(p[0], p[1], 1, 1);
+    ctx.fillStyle = 'rgba(255,92,32,' + (0.02 + 0.03 * pulse).toFixed(3) + ')';
+    for (const p of FISS_HI) ctx.fillRect(p[0] - 2, p[1] - 2, 5, 5);
+    // 热雾
+    ctx.globalAlpha = 0.07 + 0.05 * pulse;
+    ctx.fillStyle = GLOW_H;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    // 上升余烬
+    for (const em of EMBERS) {
+      const y = ((em.y - time * em.sp) % H + H) % H;
+      ctx.globalAlpha = 0.42 + 0.3 * Math.sin(time * 2.6 + em.ph);
+      ctx.fillStyle = em.sz > 1 ? '#ffd166' : '#ff6a48';
+      ctx.fillRect(Math.round(em.x + Math.sin(time * 1.4 + em.ph) * 1.6), Math.round(y), em.sz, em.sz);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
   if (diffKey === 'casual') {
     ctx.drawImage(getScene('casual'), 0, 0);
     // 暖阳呼吸
