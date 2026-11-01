@@ -26,7 +26,7 @@ window.addEventListener('keydown', (e) => {
   }
   if ((state === 'dead' || state === 'won') && (k === ' ' || k === 'enter')) { startGame(); return; }
   if ((state === 'dead' || state === 'won') && k === 'escape') { goMenu(); return; }
-  if (state === 'playing' && k === ' ') { tryDash(); return; }
+  if (state === 'playing' && k === ' ') { queueDash(); return; }
   if (state === 'upgrade' && (k === '1' || k === '2' || k === '3')) { chooseIndex(Number(k) - 1); return; }
 });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
@@ -94,8 +94,20 @@ function setMuted(v) {
   } catch (e) {}
   syncSfx();
 }
+let bgmLoaded = false;
+/* 首次交互再加载音频，避免 4.3MB 的 BGM 抢占首屏带宽 */
+function ensureBgmSrc() {
+  if (!bgmEl || bgmLoaded) return;
+  bgmLoaded = true;
+  try {
+    if (!bgmEl.getAttribute('src')) bgmEl.setAttribute('src', 'bgm.mp3');
+    bgmEl.preload = 'auto';
+    bgmEl.load();
+  } catch (e) {}
+}
 function playBgm() {
   if (!bgmEl || !bgmOn) return;
+  ensureBgmSrc();
   const p = bgmEl.play();
   if (p && p.catch) p.catch(() => {});
 }
@@ -248,6 +260,7 @@ function setPaused(v) {
   paused = v;
   $('#pauseScreen').classList.toggle('hidden', !v);
   for (const k in keys) keys[k] = false;
+  dashBuffer = 0;
   stickReset();
 }
 $('#pauseBtn').addEventListener('click', () => setPaused(!paused));
@@ -343,7 +356,51 @@ stickZone.addEventListener('pointermove', (e) => {
 ['pointerup', 'pointercancel'].forEach((t) =>
   stickZone.addEventListener(t, (e) => { if (e.pointerId === stickId) stickReset(); }));
 
-$('#dashBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); tryDash(); });
+$('#dashBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); queueDash(); });
+
+/* ---- 触控偏好：冲刺键大小 / 左手模式（localStorage 记忆） ---- */
+const TOUCH_KEY = 'pixelDash.touch.v1';
+const TOUCH_SCALES = [0.85, 1, 1.18];
+const touchPrefs = { scale: 1, lefty: false };
+try {
+  const v = JSON.parse(localStorage.getItem(TOUCH_KEY) || '{}');
+  if (v && typeof v === 'object') {
+    const s = Number(v.scale);
+    touchPrefs.scale = TOUCH_SCALES.includes(s) ? s : 1;
+    touchPrefs.lefty = !!v.lefty;
+  }
+} catch (e) {}
+function saveTouchPrefs() {
+  try { localStorage.setItem(TOUCH_KEY, JSON.stringify(touchPrefs)); } catch (e) {}
+}
+function applyTouchPrefs() {
+  document.body.style.setProperty('--dashScale', String(touchPrefs.scale));
+  document.body.classList.toggle('hand-left', touchPrefs.lefty);
+  for (const b of document.querySelectorAll('#dashSizeSeg .segBtn')) {
+    b.classList.toggle('on', Math.abs(Number(b.dataset.scale) - touchPrefs.scale) < 0.01);
+  }
+  const hs = $('#handSw');
+  if (hs) {
+    hs.classList.toggle('on', touchPrefs.lefty);
+    hs.setAttribute('aria-checked', String(touchPrefs.lefty));
+  }
+}
+for (const b of document.querySelectorAll('#dashSizeSeg .segBtn')) {
+  b.addEventListener('click', () => {
+    touchPrefs.scale = Number(b.dataset.scale) || 1;
+    saveTouchPrefs();
+    applyTouchPrefs();
+    blip(660, 0.05, 'triangle', 0.03, 90);
+  });
+}
+const handSw = $('#handSw');
+if (handSw) handSw.addEventListener('click', () => {
+  touchPrefs.lefty = !touchPrefs.lefty;
+  saveTouchPrefs();
+  applyTouchPrefs();
+  blip(600, 0.06, 'triangle', 0.04, 120);
+});
+applyTouchPrefs();
 
 const touchMode = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (touchMode) document.body.classList.add('touch');

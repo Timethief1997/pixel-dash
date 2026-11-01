@@ -463,6 +463,38 @@
     box-shadow:inset 0 2px 5px rgba(0,0,0,.4), 0 0 10px rgba(255,196,96,.22);
   }
   .switch.on i{left:calc(100% - 1.18em);background:linear-gradient(180deg,#ffe28e,#e0a63f)}
+
+  /* ---- 新版本提示条（Service Worker 更新） ---- */
+  #updateBar{
+    position:absolute;z-index:12;left:50%;bottom:1.6vmin;transform:translateX(-50%);
+    display:flex;align-items:center;gap:.9vmin;padding:.9vmin 1.2vmin;border-radius:999px;
+    border:2px solid #6f4a29;
+    background:linear-gradient(180deg, rgba(72,47,28,.98), rgba(28,18,10,.98));
+    box-shadow:inset 0 1px 0 rgba(255,228,180,.22), 0 10px 26px rgba(0,0,0,.5);
+    animation:ubIn .22s ease-out both;
+    font-size:clamp(11px,1.6vmin,15px);color:#f2d9b4;
+  }
+  #updateBar .ubText{letter-spacing:.08em;white-space:nowrap}
+  #updateApply{
+    appearance:none;cursor:pointer;font:inherit;font-weight:700;letter-spacing:.1em;
+    padding:.45vmin 1.4vmin;border-radius:999px;border:2px solid #e3ac52;color:#2b190a;
+    background:linear-gradient(180deg,#f0b75e,#cf8b30);
+    box-shadow:inset 0 1px 0 rgba(255,246,214,.6);
+  }
+  #updateApply:hover{filter:brightness(1.06)}
+  #updateLater{
+    appearance:none;cursor:pointer;font:inherit;background:none;border:0;color:#c99a67;
+    padding:.2vmin .4vmin;line-height:1;font-size:1.3em;
+  }
+  #updateLater:hover{color:#ffd9a1}
+  #updateBar.hidden{display:none}
+  @keyframes ubIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+  .setMini{
+    appearance:none;cursor:pointer;font:inherit;font-size:clamp(10px,1.45vmin,14px);
+    padding:.3vmin .9vmin;border-radius:5px;border:1px solid #8a5c33;color:#ffe0b0;
+    background:linear-gradient(180deg,#6b4526,#3b2614);letter-spacing:.08em;
+  }
+  .setMini:hover{border-color:#d8a55e;color:#fff3dd}
   @media (max-aspect-ratio: 1/1){
     #setPanel{width:clamp(134px,40vmin,196px);padding:.9vmin 1vmin 1vmin;gap:.6vmin}
     .setLabel{font-size:11px;letter-spacing:.06em}
@@ -516,6 +548,47 @@
     box-shadow:0 0 20px rgba(255,77,109,.22);transition:transform .08s;
   }
   #dashBtn:active{transform:scale(.93);background:rgba(255,77,109,.5)}
+
+  /* ---- 安全区适配：刘海 / 手势条 / 圆角 ---- */
+  #hudBtns{
+    top:calc(1.15vmin + env(safe-area-inset-top,0px));
+    right:calc(1.4vmin + env(safe-area-inset-right,0px));
+  }
+  #hudBar{
+    padding-top:calc(1.15vmin + env(safe-area-inset-top,0px));
+    padding-left:calc(1.4vmin + env(safe-area-inset-left,0px));
+    padding-right:calc(1.4vmin + var(--btn) * 3 + 2vmin + 2.4vmin + env(safe-area-inset-right,0px));
+  }
+  #stick{
+    left:calc(2.6vmin + env(safe-area-inset-left,0px) + clamp(42px,19%,84px));
+    top:calc(100% - 2.6vmin - env(safe-area-inset-bottom,0px) - clamp(42px,19%,84px));
+  }
+  #dashBtn{
+    bottom:calc(3.6vmin + env(safe-area-inset-bottom,0px));
+    right:calc(3.2vmin + env(safe-area-inset-right,0px));
+    height:calc(clamp(56px,26%,104px) * var(--dashScale,1));
+  }
+  #xpWrap{bottom:env(safe-area-inset-bottom,0px)}
+  #updateBar{bottom:calc(1.6vmin + env(safe-area-inset-bottom,0px))}
+
+  /* ---- 左手模式：摇杆与冲刺键左右互换 ---- */
+  body.hand-left #stickZone{left:auto;right:0}
+  body.hand-left #stick{
+    left:auto;
+    right:calc(2.6vmin + env(safe-area-inset-right,0px) + clamp(42px,19%,84px));
+  }
+  body.hand-left #dashBtn{right:auto;left:calc(3.2vmin + env(safe-area-inset-left,0px))}
+
+  /* ---- 设置里的触控选项：仅触屏设备显示 ---- */
+  .touchOnly{display:none}
+  body.touch .setRow.touchOnly{display:flex}
+  .segSet{display:flex;gap:2px}
+  .segBtn{
+    appearance:none;cursor:pointer;font:inherit;font-size:clamp(10px,1.4vmin,13px);
+    padding:.28vmin .62vmin;border-radius:4px;border:1px solid #6b4526;
+    background:#2b1a0c;color:#c99a67;letter-spacing:.04em;
+  }
+  .segBtn.on{border-color:#e3ac52;color:#2b190a;background:linear-gradient(180deg,#f0b75e,#cf8b30)}
 
   /* ---- 游戏内 HUD（木质铭牌，和草地质感统一） ---- */
   #hudOverlay{position:absolute;inset:0;z-index:6;pointer-events:none;display:none}
@@ -1338,7 +1411,8 @@
     </div>
   </div>
 
-  <audio id="bgm" src="bgm.mp3" loop preload="auto"></audio>
+  <!-- BGM 懒加载：首次用户交互时才挂载 src（素材 4.3MB，不再拖慢首屏） -->
+  <audio id="bgm" loop preload="none"></audio>
 
   <div id="hudBtns">
     <button class="hbtn" id="setBtn" title="设置（音效 / BGM）" aria-label="设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46c-.12.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.37.31.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.24.09.49 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z" fill="currentColor"/></svg></button>
@@ -1350,6 +1424,9 @@
     <div class="setHead"><span>设 置</span><button id="setClose" aria-label="关闭设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
     <div class="setRow"><span class="setLabel">音效</span><button class="switch on" id="sfxSw" role="switch" aria-checked="true" aria-label="音效开关"><i></i></button></div>
     <div class="setRow"><span class="setLabel">BGM</span><button class="switch on" id="bgmSw" role="switch" aria-checked="true" aria-label="背景音乐开关"><i></i></button></div>
+    <div class="setRow touchOnly"><span class="setLabel">冲刺键</span><span class="segSet" id="dashSizeSeg"><button class="segBtn" type="button" data-scale="0.85">小</button><button class="segBtn on" type="button" data-scale="1">中</button><button class="segBtn" type="button" data-scale="1.18">大</button></span></div>
+    <div class="setRow touchOnly"><span class="setLabel">左手模式</span><button class="switch" id="handSw" role="switch" aria-checked="false" aria-label="左手模式"><i></i></button></div>
+    <div class="setRow"><span class="setLabel">版本</span><button class="setMini" id="updateCheck" type="button">检查更新</button></div>
   </div>
 
   <div id="iosTip" class="layer hidden">
@@ -1366,6 +1443,12 @@
         <button class="rbtn primary" id="iosTipClose">知道了</button>
       </div>
     </div>
+  </div>
+
+  <div id="updateBar" class="hidden" role="status">
+    <span class="ubText">发现新版本</span>
+    <button id="updateApply" type="button">立即更新</button>
+    <button id="updateLater" type="button" aria-label="稍后再说">×</button>
   </div>
 
   <div id="mobileControls">
@@ -1428,5 +1511,6 @@
 <script src="js/12-shop.js"></script>
 <script src="js/13-modes.js"></script>
 <script src="js/11-main.js"></script>
+<script src="js/14-sw.js"></script>
 </body>
 </html>

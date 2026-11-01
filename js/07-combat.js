@@ -4,6 +4,15 @@
 /* ============================================================
    冲刺（核心机制）
    ============================================================ */
+let dashBuffer = 0;   // 冲刺输入缓冲：冲刺中按下的一次，落地后自动接上
+/* 供键盘 / 冲刺键调用：冲刺进行中则缓存输入，避免「按早了没反应」 */
+function queueDash() {
+  const p = player;
+  if (state !== 'playing' || !p || paused) return;
+  if (p.dashT > 0) { dashBuffer = 0.22; return; }
+  tryDash();
+}
+
 function tryDash() {
   const p = player;
   if (state !== 'playing' || !p || paused) return;
@@ -273,6 +282,17 @@ function updatePlayer(dt) {
     blip(760, 0.12, 'triangle', 0.06, 80);
   }
 
+  /* 冲刺输入缓冲：冲刺还没结束时按下的一次，落地后自动接上 */
+  if (dashBuffer > 0) {
+    if (p.dashT > 0) {
+      dashBuffer -= dt;
+    } else {
+      const pending = dashBuffer;
+      dashBuffer = 0;
+      if (pending > 0 && p.dashCharges > 0) tryDash();
+    }
+  }
+
   p.x = clamp(p.x, 6, W - 6);
   p.y = clamp(p.y, 6, H - 6);
   /* 忍者冲刺时可穿过岩石，其余角色照常被挡住 */
@@ -343,6 +363,8 @@ function killEnemy(e) {
     if (state === 'playing' && campaign && curLevel && curLevel.goal === 'boss' &&
         bossKills < curLevel.bosses) {
       nextBoss = time + (curLevel.bossGap || 60);
+      /* 晚杀兜底：第二只至少保留 25 秒战斗时间，倒计时不会被关卡时限先耗死 */
+      campaignDeadline = Math.max(campaignDeadline, nextBoss + 25);
     }
   }
   checkAch();

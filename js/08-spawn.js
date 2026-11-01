@@ -120,7 +120,7 @@ function checkCampaign() {
   if (state !== 'playing') return;
   if (lv.goal === 'kills' && kills >= lv.kills) { endGame(true); return; }
   if (lv.goal === 'boss' && bossKills >= lv.bosses) { endGame(true); return; }
-  if (time >= lv.time) {
+  if (time >= campaignDeadline) {
     if (lv.goal === 'survive') endGame(true);
     else endGame(false);
   }

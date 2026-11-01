@@ -15,6 +15,7 @@ function resetWorld() {
   if (modeKey === 'endless') nextBoss = 90;
   else if (campaign && curLevel && curLevel.goal === 'boss') nextBoss = curLevel.bossAt;
   else nextBoss = Infinity;
+  campaignDeadline = campaign && curLevel ? curLevel.time : Infinity;
   enemies = []; orbs = []; bullets = []; ebullets = []; drops = [];
   particles = []; trails = []; effects = []; texts = []; marks = []; hazards = [];
   meteors = [];
