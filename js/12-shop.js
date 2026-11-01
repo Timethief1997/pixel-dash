@@ -5,6 +5,25 @@
    商店：解锁小英雄（花累计金币）、切换出战、选择地图
    ============================================================ */
 let shopTab = 'hero';
+let shopAnim = 0, shopAnimTimer = null;
+
+/* 商店立绘原地踏步：两帧交替，像元气骑士的角色展示 */
+function stopShopAnim() {
+  if (shopAnimTimer) { clearInterval(shopAnimTimer); shopAnimTimer = null; }
+}
+function startShopAnim() {
+  stopShopAnim();
+  if (shopTab !== 'hero' || typeof HERO_ART === 'undefined') return;
+  shopAnimTimer = setInterval(() => {
+    shopAnim ^= 1;
+    for (const cv of document.querySelectorAll('#shopGrid .heroArt')) {
+      if (!HERO_ART[cv.dataset.art]) continue;
+      const g = cv.getContext('2d');
+      g.clearRect(0, 0, HERO_W, HERO_H);
+      g.drawImage(heroSprite(cv.dataset.art, shopAnim), 0, 0);
+    }
+  }, 340);
+}
 
 /* 主界面出战信息：当前英雄 / 地图 / 金币 */
 function refreshLoadout() {
@@ -42,6 +61,12 @@ function heroCardsHtml() {
     const btn = on ? '出 战 中' : owned ? '装 备' : (total >= h.price ? '购买 · ' + h.price : '还需 ' + (h.price - total) + ' 金币');
     return (
       '<div class="shopCard' + (on ? ' on' : '') + (owned ? '' : ' lock') + '" role="button" tabindex="0" data-hero="' + h.id + '">' +
+        '<div class="heroPortrait" style="--hc:' + h.col + '33">' +
+          '<canvas class="heroArt" data-art="' + h.id + '" width="16" height="16"></canvas>' +
+          '<span class="heroTag ' + (on ? '' : owned ? 'soft' : 'lock') + '">' +
+            (on ? '出战中' : owned ? '已拥有' : '未解锁') +
+          '</span>' +
+        '</div>' +
         '<div class="scTop">' +
           '<span class="scIcon" style="background:' + h.col + '">' + h.name.slice(0, 1) + '</span>' +
           '<span class="scName">' + h.name + '</span>' +
@@ -92,6 +117,18 @@ function renderShop() {
   }
   grid.className = shopTab === 'hero' ? 'shopGrid' : 'mapGrid';
   grid.innerHTML = shopTab === 'hero' ? heroCardsHtml() : mapCardsHtml();
+
+  /* 英雄立绘：和场上小人共用同一份 14×14 像素画 */
+  for (const cv of grid.querySelectorAll('.heroArt')) {
+    const id = cv.dataset.art;
+    if (!HERO_ART[id]) continue;
+    cv.width = HERO_W; cv.height = HERO_H;
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, HERO_W, HERO_H);
+    g.drawImage(heroSprite(id, 0), 0, 0);
+  }
+  startShopAnim();
 }
 
 function openShop() {
@@ -103,6 +140,7 @@ function openShop() {
 }
 
 function closeShop() {
+  stopShopAnim();
   $('#shopScreen').classList.add('hidden');
   layers.title.classList.remove('hidden');
   refreshBestLine();

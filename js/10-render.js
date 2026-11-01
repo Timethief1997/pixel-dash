@@ -219,46 +219,150 @@ function drawEnemy(e) {
 /* ============================================================
    小勇士像素精灵：字符画 → 离屏画布 1:1 烘焙，再原样绘制
    ============================================================ */
-const HERO_PAL = {
-  k: '#241a12', h: '#a9762a', H: '#f3d06a', s: '#f4c9a1', e: '#2a1c14',
-  r: '#d14a37', b: '#3d63ac', B: '#7aa6e6', g: '#ffcf5c', o: '#5b3a22',
+/* 每个小英雄一套 16×16 字符画：剪影各不相同，商店立绘与场上小人共用同一份数据 */
+const HERO_W = 16, HERO_H = 16;
+const HERO_ART = {
+  scout: {
+    /* 黄帽冒险者：帽檐双色、红围巾、蓝上衣浅色胸甲、金腰带、皮靴 */
+    pal: { k: '#1b1418', H: '#ffe066', h: '#e0a93a', o: '#8a5c22', s: '#f7cfa6', m: '#b8624a', e: '#1a202c', r: '#e05a4e', b: '#35548c', B: '#8fc0f0', g: '#ffcf5c' },
+    art: [
+      '.....kkkkkk.....',
+      '....kHHHHHHk....',
+      '...kHhhhhhhHk...',
+      '...kkhhhhhhkk...',
+      '..kooooooooook..',
+      '...kssssssssk...',
+      '...ksseesseek...',
+      '...ksssmssssk...',
+      '...krrrrrrrrk...',
+      '..kbbrrrrrrbbk..',
+      '..kbBBBBBBBBbk..',
+      '..kbBBggggBBbk..',
+      '...kbbbbbbbbk...',
+      '....kk..kk......',
+      '....oo..oo......',
+      '...ooo..ooo.....',
+    ],
+  },
+  guanyu: {
+    /* 关羽：绿盔金甲、红脸长须、手持青龙偃月刀 */
+    pal: { k: '#161210', G: '#2f7d4f', g: '#5fc97f', s: '#e08a6a', S: '#b9634a', e: '#241512', n: '#1d1c26', N: '#3a3950', y: '#cfe6ff', m: '#7a5230', gd: '#ffcf5c' },
+    art: [
+      '.....kkkkkk..yyy',
+      '....kGGGGGGk.yyy',
+      '...kGggggggGk.yy',
+      '..kGGggggggGGkm.',
+      '...ksSssssSsk.m.',
+      '...ksseesseek.m.',
+      '...kssssSsssk.m.',
+      '...knnnnnnnnk.m.',
+      '..knnnnnnnnnnk.m',
+      '..kGnnNNnnnnGk.m',
+      '..kGGyyyyyyGGk.m',
+      '..kGggggggggGk.m',
+      '...kGGGGGGGGk.m.',
+      '....kk..kk......',
+      '...GG..GG.......',
+      '..kkk..kkk......',
+    ],
+  },
+  truck: {
+    /* 泥头车：侧视重卡 —— 梯形高顶驾驶室、大侧窗、前脸格栅与大灯、长货箱装泥、银色保险杠、双大轮 */
+    pal: { k: '#0e0e14', Y: '#f2a13c', y: '#b96e20', d: '#6b3d14', M: '#a08050', B: '#1e2c44', l: '#7fc0ff', L: '#ffe066', W: '#3a3a46', w: '#9aa2b4' },
+    art: [
+      'MMdMMMdMM.YYYYY.',
+      'kyyyyyyyykYYYYYk',
+      'kYYYYYYYYklBBBYk',
+      'kYYYYYYYYkBBBBYk',
+      'kYYYYYYYYkBBBlWk',
+      'kYYYYYYYYkYYYYkk',
+      'kYYYYYYYYkYYYYWk',
+      'kYYYYYYYYkYYYYWk',
+      'kddddddddkYYYYLL',
+      'WWWWWWWWWwwwwwww',
+      '.kkkk......kkkk.',
+      'kWWWWk....kWWWWk',
+      'kWwwWk....kWwwWk',
+      'kWwwWk....kWwwWk',
+      'kWWWWk....kWWWWk',
+      '.kkkk......kkkk.',
+    ],
+  },
+  moto: {
+    /* 摩托：侧视街车（无骑手）—— 风挡、车把后视镜、蓝色油箱与车头、大灯、银色排气管、发动机、双大轮 */
+    pal: { k: '#0e0e14', B: '#2f6fd0', b: '#1d2b44', l: '#7fbcff', W: '#3a3a46', w: '#a8b2c2', L: '#ffe066', R: '#ff4d5e', u: '#c8d2dc', g: '#bfe9ff' },
+    art: [
+      'kk...kkkkkkggk.k',
+      'BBk.kBllllBggkku',
+      'BBkkkBBBBBBkuuuu',
+      'BbbbbBBBBBWBBllk',
+      'RbbbbBBBBBWBBBLL',
+      'kkkkWWWWWWWBBBLL',
+      'uukkWWwwwWWBBuBk',
+      'uuuuWWWWWWWWkuk.',
+      'kkkkWWWWWWkkkukk',
+      'kBWWWWWWWWWBBBBB',
+      '.kkkkkkkkkkkkkkk',
+      'kWWWWk....kWWWWk',
+      'kWwwWk....kWwwWk',
+      'kWwwWk....kWwwWk',
+      'kWWWWk....kWWWWk',
+      '.kkkk......kkkk.',
+    ],
+  },
+  diaper: {
+    /* 尿不湿：不戴帽 —— 卷毛、耳朵、黑豆眼带高光、腮红、奶嘴、白尿布与手臂小腿 */
+    pal: { k: '#2a2020', h: '#8a5c3a', s: '#f7cfa6', e: '#2a1c14', R: '#ff8fa3', r: '#ffb3c1', w: '#f5f5ee', W: '#d8d8c8' },
+    art: [
+      '....khhhhk......',
+      '...kssssssk.....',
+      '..kssssssssk....',
+      '..ksswsswssk....',
+      '.ksssessesssk...',
+      '..krssssssrk....',
+      '..ksssRwRssk....',
+      '..kssssssssk....',
+      'kkwwwwwwwwwwkk..',
+      'sswwwwwwwwwwssk.',
+      'sswwwwwwwwwwssk.',
+      'kwwwWWwwWWwwwk..',
+      'kwwwwwwwwwwwwk..',
+      '.kwwwwwwwwwwk...',
+      '..kksskksskk....',
+      '....kk..kk......',
+    ],
+  },
 };
-const HERO_BODY = [
-  '....khhhhk....',
-  '...kHHHHHHk...',
-  '..kHHHHHHHHk..',
-  '..khhhhhhhhk..',
-  '...kssssssk...',
-  '...ksessesk...',
-  '...kssssssk...',
-  '...krrrrrrk...',
-  '..kbbbbbbbk...',
-  '..kbBBBBBBk...',
-  '...kgggggk....',
-];
-const HERO_LEGS = [
-  ['....kk.kk.....', '....oo.oo.....', '...ooo.ooo....'],
-  ['....kk.kk.....', '....oo.oo.....', '....oo.ooo....'],
-];
-const HERO_W = 14, HERO_H = 14;
 
-function bakeHero(legs, white) {
+/* 缓存：id|帧|描边白 → 离屏画布 */
+const HERO_SPR = {};
+function shiftRow(r, dx) {
+  return dx > 0 ? (' ' + r).slice(0, HERO_W) : (r + ' ').slice(-HERO_W);
+}
+function heroSprite(id, frame, white) {
+  const key = (id || 'scout') + '|' + (frame ? 1 : 0) + (white ? '|w' : '');
+  if (HERO_SPR[key]) return HERO_SPR[key];
+  const art = HERO_ART[id] || HERO_ART.scout;
+  const legs = art.art.slice(13);
+  const walk = frame ? legs.map((r) => shiftRow(r, 1)) : legs;
   const c = document.createElement('canvas');
   c.width = HERO_W; c.height = HERO_H;
   const g = c.getContext('2d');
   for (let y = 0; y < HERO_H; y++) {
-    const row = y < HERO_BODY.length ? HERO_BODY[y] : legs[y - HERO_BODY.length];
+    const row = y < 13 ? art.art[y] : walk[y - 13];
+    if (!row) continue;
     for (let x = 0; x < row.length; x++) {
       const ch = row[x];
-      if (ch === '.') continue;
-      g.fillStyle = white ? '#ffffff' : HERO_PAL[ch];
+      if (ch === '.' || ch === ' ') continue;
+      const col = white ? '#ffffff' : art.pal[ch];
+      if (!col) continue;
+      g.fillStyle = col;
       g.fillRect(x, y, 1, 1);
     }
   }
+  HERO_SPR[key] = c;
   return c;
 }
-const HERO_SPR = HERO_LEGS.map((l) => bakeHero(l, false));
-const HERO_SPR_WHITE = HERO_LEGS.map((l) => bakeHero(l, true));
 
 /* ---- 标题封面：黄昏草甸（烘焙一张 320×180 场景） ---- */
 function bakeCover(g) {
@@ -419,8 +523,14 @@ COVER_HERO_GLOW.addColorStop(1, 'rgba(255,180,90,0)');
 
 function drawTitleArt(ts) {
   const frame = Math.floor(ts / 260) % 2;
+  const hero = currentHero();
   titleArtCtx.clearRect(0, 0, HERO_W, HERO_H);
-  titleArtCtx.drawImage(HERO_SPR[frame], 0, 0);
+  titleArtCtx.drawImage(heroSprite(hero.id, frame), 0, 0);
+  const artName = $('#artName');
+  if (artName && artName.dataset.hero !== hero.id) {
+    artName.dataset.hero = hero.id;
+    artName.textContent = hero.name;
+  }
 
   const g = coverCtx, t = ts / 1000;
   g.clearRect(0, 0, W, H);
@@ -447,14 +557,14 @@ function drawTitleArt(ts) {
   g.fillStyle = COVER_HERO_GLOW;
   g.fillRect(0, 0, W, H);
   g.globalAlpha = 1;
-  g.drawImage(HERO_SPR[frame], Math.round(hx - HERO_W * 1.5), Math.round(hy - HERO_H * 3), HERO_W * 3, HERO_H * 3);
+  g.drawImage(heroSprite(currentHero().id, frame), Math.round(hx - HERO_W * 1.5), Math.round(hy - HERO_H * 3), HERO_W * 3, HERO_H * 3);
 }
 
 function drawPlayer() {
   const p = player;
   const x = Math.round(p.x), y = Math.round(p.y);
   const frame = Math.floor(time * 7) % 2;
-  const spr = (p.flash > 0 ? HERO_SPR_WHITE : HERO_SPR)[frame];
+  const spr = heroSprite(p.hero, frame, p.flash > 0);
   const ox = -Math.floor(HERO_W / 2), oy = -Math.floor(HERO_H / 2);
 
   // 脚下柔光，让角色从深色背景里浮起来
