@@ -54,46 +54,27 @@ function heroStatLine(h) {
   );
 }
 
+/* 所有英雄同屏：金币英雄走 data-hero，勋章英雄走 data-exchange，只是购买方式不同 */
 function heroCardsHtml() {
   const total = loadCoins();
-  return HEROES.filter((h) => !h.medalOnly).map((h) => {
-    const owned = heroOwned(h.id);
-    const on = heroKey === h.id;
-    const btn = on ? '出 战 中' : owned ? '装 备' : (total >= h.price ? '购买 · ' + h.price : '还需 ' + (h.price - total) + ' 金币');
-    return (
-      '<div class="shopCard' + (on ? ' on' : '') + (owned ? '' : ' lock') + '" role="button" tabindex="0" data-hero="' + h.id + '">' +
-        '<div class="heroPortrait" style="--hc:' + h.col + '33">' +
-          '<canvas class="heroArt" data-art="' + h.id + '" width="16" height="16"></canvas>' +
-          '<span class="heroTag ' + (on ? '' : owned ? 'soft' : 'lock') + '">' +
-            (on ? '出战中' : owned ? '已拥有' : '未解锁') +
-          '</span>' +
-        '</div>' +
-        '<div class="scTop">' +
-          '<span class="scIcon" style="background:' + h.col + '">' + h.name.slice(0, 1) + '</span>' +
-          '<span class="scName">' + h.name + '</span>' +
-          '<span class="scTag">' + h.tag + '</span>' +
-        '</div>' +
-        '<div class="scDesc">' + h.desc + '</div>' +
-        heroStatLine(h) +
-        '<div class="scBtn">' + btn + '</div>' +
-      '</div>'
-    );
-  }).join('');
-}
-
-function medalCardsHtml() {
   const bal = medalBalance();
-  return HEROES.filter((h) => h.medalOnly).map((h) => {
+  return HEROES.map((h) => {
     const owned = heroOwned(h.id);
     const on = heroKey === h.id;
+    const byMedal = !!h.medalOnly;
     const cost = h.medal || 0;
-    const btn = on ? '出 战 中' : owned ? '装 备' : (bal >= cost ? '兑换 · ' + cost + ' 勋章' : '还需 ' + (cost - bal) + ' 勋章');
+    const btn = on ? '出 战 中'
+      : owned ? '装 备'
+      : byMedal
+        ? (bal >= cost ? '兑换 · ' + cost + ' 勋章' : '还需 ' + (cost - bal) + ' 勋章')
+        : (total >= h.price ? '购买 · ' + h.price : '还需 ' + (h.price - total) + ' 金币');
     return (
-      '<div class="shopCard' + (on ? ' on' : '') + (owned ? '' : ' lock') + '" role="button" tabindex="0" data-exchange="' + h.id + '">' +
+      '<div class="shopCard' + (on ? ' on' : '') + (owned ? '' : ' lock') + '" role="button" tabindex="0" ' +
+        (byMedal ? 'data-exchange="' + h.id + '"' : 'data-hero="' + h.id + '"') + '>' +
         '<div class="heroPortrait" style="--hc:' + h.col + '33">' +
           '<canvas class="heroArt" data-art="' + h.id + '" width="16" height="16"></canvas>' +
           '<span class="heroTag ' + (on ? '' : owned ? 'soft' : 'lock') + '">' +
-            (on ? '出战中' : owned ? '已拥有' : '可兑换') +
+            (on ? '出战中' : owned ? '已拥有' : byMedal ? '勋章兑换' : '未解锁') +
           '</span>' +
         '</div>' +
         '<div class="scTop">' +
@@ -103,8 +84,10 @@ function medalCardsHtml() {
         '</div>' +
         '<div class="scDesc">' + h.desc + '</div>' +
         heroStatLine(h) +
-        '<div class="scStat" style="grid-template-columns:1fr">兑换价 <b>' + cost + ' 勋章</b> · ' +
-          (owned ? '已兑换 1/1' : '库存 1/1') + '</div>' +
+        (byMedal
+          ? '<div class="scStat" style="grid-template-columns:1fr">兑换价 <b>' + cost + ' 勋章</b> · ' +
+              (owned ? '已兑换 1/1' : '库存 1/1') + '</div>'
+          : '') +
         '<div class="scBtn">' + btn + '</div>' +
       '</div>'
     );
@@ -152,16 +135,13 @@ function renderShop() {
     b.classList.toggle('on', (b.dataset && b.dataset.tab) === shopTab);
   }
   grid.className = shopTab === 'map' ? 'mapGrid' : 'shopGrid';
-  grid.innerHTML = shopTab === 'hero' ? heroCardsHtml() :
-                   shopTab === 'medal' ? medalCardsHtml() : mapCardsHtml();
+  grid.innerHTML = shopTab === 'hero' ? heroCardsHtml() : mapCardsHtml();
   const tip = $('#shopTip');
   if (tip) {
     tip.textContent =
-      shopTab === 'medal'
-        ? '勋章上限 ' + MEDAL_CAP + ' 枚 · 仅忍者可用勋章兑换（1/1）· 由成就奖励发放'
-        : shopTab === 'map'
-          ? '地图只影响无尽模式；闯关地图由关卡决定'
-          : '金币来自局中拾取与结算，购买后永久解锁；忍者需在勋章页兑换';
+      shopTab === 'map'
+        ? '地图只影响无尽模式；闯关地图由关卡决定'
+        : '金币或勋章解锁 · 忍者需 20 勋章 · 勋章上限 ' + MEDAL_CAP + ' 枚';
   }
 
   /* 英雄立绘：和场上小人共用同一份 14×14 像素画 */

@@ -118,7 +118,7 @@ const HEROES = [
   { id: 'diaper', name: '尿不湿', price: 300, medal: 0, col: '#ffd76a', tag: '幸运',
     hp: 10, speed: -4,  dashDamage: 0,  dashRadius: 0, dashCharges: 0, rerolls: 2, skill: 'lucky',
     desc: '又厚又软：血多、每局多 2 次换牌机会，冲刺偏弱但很能苟。' },
-  { id: 'ninja',  name: '忍者',   price: 0,   medal: 30, medalOnly: true, col: '#7ef0ff', tag: '潜行',
+  { id: 'ninja',  name: '忍者',   price: 0,   medal: 20, medalOnly: true, col: '#7ef0ff', tag: '潜行',
     hp: 5,  speed: 12,  dashDamage: 1,  dashRadius: -2, dashCharges: 1, rerolls: 0, skill: 'blink',
     desc: '跑得最快，多一次冲刺；冲刺能直接穿过岩石，落地后还多 0.25 秒无敌。血薄，全靠位移躲。' },
   { id: 'smith',  name: '铁匠',   price: 750, medal: 0, col: '#ff9a3c', tag: '熔锻',
