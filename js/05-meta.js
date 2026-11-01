@@ -254,7 +254,6 @@ const ACHS = [
   { id: 'legend',  name: '破关者',     kind: 'pos', desc: '通关任意一个闯关关卡',                cond: (r, s, c) => !!c.win && c.mode === 'campaign' },
   { id: 'slayer',  name: '三千暴徒',   kind: 'pos', desc: '单局得分达到 3000',                   cond: () => calcScore() >= 3000 },
   { id: 'tenclear', name: '十殿老将',  kind: 'pos', desc: '通关前 10 个闯关关卡',                cond: () => campaignProgress() >= 11 },
-  { id: 'allclear', name: '全境制霸',  kind: 'pos', desc: '通关全部闯关关卡',                    cond: () => campaignProgress() > LEVELS.length },
   { id: 'night5k', name: '长夜不眠',   kind: 'pos', desc: '无尽模式单局得分达到 5000',            cond: () => endless && calcScore() >= 5000 },
   { id: 'night8k', name: '深夜领主',   kind: 'pos', desc: '无尽模式单局得分达到 8000',            cond: () => endless && calcScore() >= 8000 },
 
