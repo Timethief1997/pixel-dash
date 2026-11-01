@@ -204,6 +204,7 @@ function update(dt) {
   updateHazards(dt);
   if (state !== 'playing') return;
   updateMapTerrain(dt);
+  if (state !== 'playing') return;   // 陨石可能砸死玩家，死亡后不要再结算拾取
   updateOrbs(dt);
   if (state !== 'playing') return;
   updateDrops(dt);
