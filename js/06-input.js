@@ -94,29 +94,42 @@ function setMuted(v) {
   } catch (e) {}
   syncSfx();
 }
-let bgmLoaded = false;
-/* 首次交互再加载音频，避免 4.3MB 的 BGM 抢占首屏带宽 */
-function ensureBgmSrc() {
-  if (!bgmEl || bgmLoaded) return;
-  bgmLoaded = true;
+/* 场景专属 BGM：键是地图 id。只有配了曲目的场景才放背景音乐，其余场景保持安静 */
+const BGM_TRACKS = {
+  neon: 'bgm.mp3',
+};
+let bgmTrack = '';   // 当前已挂载的曲目，换图时才重新 load
+function sceneBgmTrack() { return (map && BGM_TRACKS[map.id]) || ''; }
+/* 首次进局再加载音频，避免曲目抢占首屏带宽 */
+function ensureBgmSrc(track) {
+  if (!bgmEl || !track) return false;
+  if (bgmTrack === track && bgmEl.getAttribute('src')) return true;
+  bgmTrack = track;
   try {
-    if (!bgmEl.getAttribute('src')) bgmEl.setAttribute('src', 'bgm.mp3');
+    bgmEl.setAttribute('src', track);
     bgmEl.preload = 'auto';
     bgmEl.load();
   } catch (e) {}
+  return true;
 }
-/* 只有真正进入一局战斗时才播 BGM，菜单与各界面保持安静 */
+/* 只有真正进入一局战斗、且当前地图配了曲目时才播，菜单与各界面保持安静 */
 function inRun() {
   return state === 'playing' || state === 'upgrade' || !!paused;
 }
 function playBgm() {
-  if (!bgmEl || !bgmOn) return;
-  ensureBgmSrc();
+  const track = sceneBgmTrack();
+  if (!bgmEl || !bgmOn || !track) { stopBgm(); return; }
+  ensureBgmSrc(track);
   const p = bgmEl.play();
   if (p && p.catch) p.catch(() => {});
 }
+/* 每局开场：有曲目就从头放，没有曲目的场景不开音乐 */
 function startRunBgm() {
-  if (bgmOn) playBgm();
+  const track = bgmOn ? sceneBgmTrack() : '';
+  if (!track) { stopBgm(); return; }
+  ensureBgmSrc(track);
+  try { bgmEl.currentTime = 0; } catch (e) {}
+  playBgm();
 }
 function stopBgm() {
   if (bgmEl && !bgmEl.paused) bgmEl.pause();
