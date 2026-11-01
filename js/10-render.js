@@ -733,6 +733,17 @@ function drawPlayer() {
   }
 }
 
+// 沙暴整屏层：先画满沙尘，再以玩家为中心抠出视野圈，避免把游戏画面一起擦掉
+let sandFx = null;
+function sandFxCanvas() {
+  if (!sandFx) {
+    sandFx = document.createElement('canvas');
+    sandFx.width = W;
+    sandFx.height = H;
+  }
+  return sandFx;
+}
+
 function render() {
   ctx.save();
   if (shake > 0.15) {
@@ -1045,45 +1056,84 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // 沙暴：黄沙压屏 + 横向沙线，能见度随时间淡入淡出（0=无，1=最浓）
+  // 沙暴：整屏黄沙，只留玩家周围一小圈模糊视野
   if (sandT > 0) {
     const k = clamp(Math.min(sandT, SAND_STORM - sandT) / 0.8, 0, 1);
-    ctx.fillStyle = 'rgba(190,132,58,' + (0.18 + 0.38 * k).toFixed(3) + ')';
-    ctx.fillRect(0, 0, W, H);
+    const sc = sandFxCanvas();
+    const sg = sc.getContext('2d');
+    sg.clearRect(0, 0, W, H);
+    // 底色：整屏土黄压暗，远处基本看不清
+    sg.fillStyle = 'rgba(190,132,58,0.56)';
+    sg.fillRect(0, 0, W, H);
     // 细小沙粒：按时间向右掠过，密度固定但每粒速度不同
-    ctx.fillStyle = 'rgba(244,214,150,' + (0.55 * k).toFixed(3) + ')';
+    sg.fillStyle = 'rgba(244,214,150,0.55)';
     for (let i = 0; i < 240; i++) {
       const spd = 150 + (i % 4) * 35;
       const x = ((i * 71 + time * spd) % (W + 48)) - 24;
       const y = (((i * 37 + time * 18 + Math.sin(i * 1.7) * 5) % H) + H) % H;
-      ctx.fillRect(Math.round(x), Math.round(y), 2 + (i % 4), 1);
+      sg.fillRect(Math.round(x), Math.round(y), 2 + (i % 4), 1);
     }
     // 缓慢纵向飘移的沙尘带：把画面糊成一片土黄
-    ctx.fillStyle = 'rgba(196,138,68,' + (0.30 * k).toFixed(3) + ')';
+    sg.fillStyle = 'rgba(196,138,68,0.30)';
     for (let i = 0; i < 6; i++) {
       const y = (((i * 34 + time * 26) % (H + 24)) + H + 24) % (H + 24) - 12;
-      ctx.fillRect(0, Math.round(y), W, 16 + i * 6);
+      sg.fillRect(0, Math.round(y), W, 16 + i * 6);
     }
     // 近处沙幕：更粗的横向流线，进一步糊住视线
-    ctx.fillStyle = 'rgba(232,190,120,' + (0.40 * k).toFixed(3) + ')';
+    sg.fillStyle = 'rgba(232,190,120,0.40)';
     for (let i = 0; i < 36; i++) {
       const x = ((i * 53 + time * (230 + i * 12)) % (W + 80)) - 40;
       const y = (i * 5 + 3) % H;
-      ctx.fillRect(Math.round(x), y, 24 + (i % 5) * 8, 2);
+      sg.fillRect(Math.round(x), y, 24 + (i % 5) * 8, 2);
     }
-    // 贴脸沙墙：大块半透明横条，只留中间一线能看清
-    ctx.fillStyle = 'rgba(214,164,88,' + (0.16 * k).toFixed(3) + ')';
+    // 贴脸沙墙：大块半透明横条
+    sg.fillStyle = 'rgba(214,164,88,0.16)';
     for (let i = 0; i < 3; i++) {
       const y = (((i * 62 + time * 9) % (H + 40)) + H + 40) % (H + 40) - 20;
-      ctx.fillRect(0, Math.round(y), W, 26);
+      sg.fillRect(0, Math.round(y), W, 26);
     }
-    // 四周再压暗，制造「看不远」的压迫感
-    ctx.globalAlpha = 0.44 * k;
-    ctx.fillStyle = VIGNETTE_DESERT;
-    ctx.fillRect(0, 0, W, H);
-    ctx.globalAlpha = 0.22 * k;
-    ctx.fillStyle = 'rgba(28,16,6,1)';
-    ctx.fillRect(0, 0, W, H);
+    // 四周压暗，制造「看不远」的压迫感
+    sg.globalAlpha = 0.44;
+    sg.fillStyle = VIGNETTE_DESERT;
+    sg.fillRect(0, 0, W, H);
+    sg.globalAlpha = 0.22;
+    sg.fillStyle = 'rgba(28,16,6,1)';
+    sg.fillRect(0, 0, W, H);
+    sg.globalAlpha = 1;
+
+    // 以玩家为中心抠出一圈视野：圈外几乎全糊，圈内只留轮廓
+    const px = player.x;
+    const py = player.y;
+    const R = 30;
+    sg.globalCompositeOperation = 'destination-out';
+    const hole = sg.createRadialGradient(px, py, 2, px, py, R);
+    hole.addColorStop(0, 'rgba(0,0,0,1)');
+    hole.addColorStop(0.42, 'rgba(0,0,0,0.92)');
+    hole.addColorStop(0.68, 'rgba(0,0,0,0.66)');
+    hole.addColorStop(0.86, 'rgba(0,0,0,0.30)');
+    hole.addColorStop(1, 'rgba(0,0,0,0)');
+    sg.fillStyle = hole;
+    sg.fillRect(0, 0, W, H);
+    sg.globalCompositeOperation = 'source-over';
+    // 圈内再补一层薄沙：看到的是「模糊的一小片」，而不是开个干净洞
+    const haze = sg.createRadialGradient(px, py, 0, px, py, R);
+    haze.addColorStop(0, 'rgba(216,170,96,0.10)');
+    haze.addColorStop(0.6, 'rgba(206,158,84,0.20)');
+    haze.addColorStop(1, 'rgba(206,158,84,0)');
+    sg.fillStyle = haze;
+    sg.fillRect(0, 0, W, H);
+    // 视野边缘的逆风沙线，让那圈边缘也在流动
+    sg.fillStyle = 'rgba(240,202,136,0.22)';
+    for (let i = 0; i < 10; i++) {
+      const a = i * 0.63 + time * 1.6;
+      const r = R * (0.82 + 0.16 * Math.sin(i * 2.3));
+      const x = px + Math.cos(a) * r;
+      const y = py + Math.sin(a) * r * 0.72;
+      sg.fillRect(Math.round(x), Math.round(y), 10 + (i % 3) * 4, 1);
+    }
+
+    ctx.globalAlpha = k;
+    ctx.drawImage(sc, 0, 0);
     ctx.globalAlpha = 1;
   }
 
