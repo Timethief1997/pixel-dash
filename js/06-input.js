@@ -94,11 +94,12 @@ function setMuted(v) {
   } catch (e) {}
   syncSfx();
 }
-/* 场景专属 BGM：键是地图 id。只有配了曲目的场景才放背景音乐，其余场景保持安静 */
+/* 场景专属 BGM：键是地图 id。没在表里的场景不放背景音乐 */
 const BGM_TRACKS = {
   plain: 'grassland.mp3',   // 草原 / 苔原
   snow: 'ice.mp3',          // 冰天雪地
   lava: 'volcano.mp3',      // 熔岩
+  desert: 'desert.mp3',     // 荒漠
   neon: 'bgm.mp3',          // 霓虹
   rain: 'rain.mp3',         // 雨夜
   reef: 'ocean.mp3',        // 环礁
