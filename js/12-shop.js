@@ -47,7 +47,7 @@ function heroStatLine(h) {
       '<span>充能 <b>' + Math.max(1, 2 + h.dashCharges) + '</b></span>' +
       '<span>换牌 <b>' + (2 + h.rerolls) + '</b></span>' +
     '</div>' +
-    '<div class="scStat" style="grid-template-columns:1fr;color:#8fb2cf">相对小勇：' +
+    '<div class="scStat" style="grid-template-columns:1fr;color:#b08d68">相对小勇：' +
       '速度 ' + d(h.speed) + ' · 伤害 ' + d(h.dashDamage) + ' · 范围 ' + d(h.dashRadius) +
     '</div>'
   );

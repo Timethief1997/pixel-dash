@@ -34,12 +34,12 @@ function campaignLeadHtml(done) {
   const path = LEVELS.map((lv) => {
     const st = lv.id < done ? 'done' : lv.id === done ? 'now' : '';
     return '<span class="node ' + st + '">' + lv.id + ' · ' + lv.name + '</span>';
-  }).join('<span style="color:#4a5674">›</span>');
+  }).join('<span style="color:#7a5c3c">›</span>');
   const cleared = done > LEVELS.length;
   return '<div class="mcol">' +
-    '<div class="mtitle" style="color:#7dffb0">闯关模式</div>' +
+    '<div class="mtitle" style="color:#a8f5c3">闯关模式</div>' +
     '<div class="mdesc">一关接一关，每关都有固定的地图和目标。目标完成即通关，超时或阵亡则失败；通关后自动解锁下一关，进度保存在本机。' +
-      (cleared ? '　<b style="color:#7dffb0">全部关卡已通关。</b>' : '') + '</div>' +
+      (cleared ? '　<b style="color:#a8f5c3">全部关卡已通关。</b>' : '') + '</div>' +
     '<div class="modePath">' + path + '</div>' +
   '</div>';
 }
@@ -47,7 +47,7 @@ function campaignLeadHtml(done) {
 function endlessLeadHtml() {
   const m = map;
   return '<div class="mcol">' +
-    '<div class="mtitle" style="color:#ff9a6b">无尽模式</div>' +
+    '<div class="mtitle" style="color:#ffb88a">无尽模式</div>' +
     '<div class="mdesc">固定一张地图，一直打到倒下为止。每 30 秒进入新的一波：敌人更多、更快、更厚；每 90 秒来一只 BOSS。</div>' +
     '<div class="modeTagline">当前固定地图：<b style="color:' + m.col + '">' + m.name + '</b> · ' + mapMods(m) + '</div>' +
   '</div>';
