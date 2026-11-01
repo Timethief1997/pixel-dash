@@ -112,20 +112,8 @@ function updatePlayer(dt) {
   if (p.lavaTick > 0) p.lavaTick -= dt;
   if (p.returnT > 0) p.returnT -= dt;
 
-  // 中毒：每秒固定掉 1 点血，且期间无法吸血
-  if (p.poisonT > 0) {
-    p.poisonT -= dt;
-    p.poisonTick -= dt;
-    if (p.poisonTick <= 0) {
-      p.poisonTick = 1;
-      p.hp -= 1;
-      p.flash = 0.1;
-      texts.push({ x: p.x, y: p.y - 12, vy: -18, life: 0.6, text: '-1 毒', color: '#9ef58a' });
-      burst(p.x, p.y, '#9ef58a', 5, 30);
-      blip(260, 0.08, 'triangle', 0.03, -60);
-      if (p.hp <= 0) { p.hp = 0; endGame(false); return; }
-    }
-  }
+  // 中毒：只封锁吸血，不再持续掉血（第五关毒池压力过大，改为纯克制吸血）
+  if (p.poisonT > 0) p.poisonT -= dt;
 
   // 守护结界：护盾按冷却恢复
   if (p.stats.shieldMax > 0 && p.shield < p.stats.shieldMax) {
