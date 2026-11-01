@@ -104,7 +104,9 @@ function updateSpawn(dt) {
       shake = Math.max(shake, 6);
       toast('关卡 BOSS · ' + bossName(bossGen), true);
       blip(110, 0.35, 'sawtooth', 0.07, -60);
-      nextBoss = bossGen >= curLevel.bosses ? Infinity : time + (curLevel.bossGap || 60);
+      /* 后续 BOSS 不再按固定时间表出场：改为「前一只被击败后 bossGap 秒」，
+         计时在 killEnemy() 里设置，这里先关掉定时器 */
+      nextBoss = Infinity;
     } else {
       nextBoss = Infinity;
     }

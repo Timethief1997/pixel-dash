@@ -337,7 +337,14 @@ function killEnemy(e) {
     if (e.affix) achRun.elites += 1;
     if (e.type === 'boss') { achRun.bosses += 1; achStats.boss += 1; saveAchStats(); }
   }
-  if (e.type === 'boss') bossKills += 1;
+  if (e.type === 'boss') {
+    bossKills += 1;
+    /* 闯关多 BOSS 关卡：第二只在前一只被击败后 bossGap 秒出场 */
+    if (state === 'playing' && campaign && curLevel && curLevel.goal === 'boss' &&
+        bossKills < curLevel.bosses) {
+      nextBoss = time + (curLevel.bossGap || 60);
+    }
+  }
   checkAch();
   const t = ETYPES[e.type];
   const pts = Math.round((e.pts || t.pts) * player.stats.scoreMul * (e.affix ? 2.5 : 1));
