@@ -45,7 +45,7 @@ function campaignLeadHtml(done) {
   return '<div class="mcol">' +
     '<div class="mtitle" style="color:#a8f5c3">闯关模式</div>' +
     '<div class="mdesc">一关接一关，每关都有固定的地图和目标。目标完成即通关，超时或阵亡则失败；通关后自动解锁下一关，进度保存在本机。' +
-      (cleared ? '　<b style="color:#a8f5c3">全部关卡已通关。</b>' : '') + '</div>' +
+      (cleared ? '　<b style="color:#a8f5c3">当前关卡已全部通关。</b>' : '') + '</div>' +
     '<div class="modePath">' + path + '</div>' +
   '</div>';
 }

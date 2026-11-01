@@ -128,7 +128,7 @@ const LEVELS = [
   { id: 18, name: '环礁 · 终潮', map: 'reef', col: '#4fe3d0', tag: '终潮',
     goal: 'boss', bosses: 2, bossAt: 20, bossGap: 45, time: 170,
     portals: 1, spawnMul: 1.0, maxAdds: 2, coreHp: 24, tideBurn: 1.2,
-    desc: '最后一关：涨潮、水晶、传送台与两只 BOSS 全部登场。安全圈收到底，BOSS 还在往中心挤，连落脚的地方都要算好。' },
+    desc: '涨潮、水晶、传送台与两只 BOSS 同时登场：安全圈收到底，BOSS 还在往中心挤，连落脚的地方都要算好。' },
 ];
 function campaignProgress() {
   try {

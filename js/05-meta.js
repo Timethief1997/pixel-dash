@@ -118,7 +118,7 @@ function renderHistory() {
   if (histTab === 'campaign') {
     const done = campaignProgress();
     const cleared = Math.min(Math.max(done - 1, 0), LEVELS.length);
-    const next = done <= LEVELS.length ? '下一关：第 ' + done + ' 关 · ' + LEVELS[done - 1].name : '全部关卡已通过';
+    const next = done <= LEVELS.length ? '下一关：第 ' + done + ' 关 · ' + LEVELS[done - 1].name : '当前关卡已全部通过';
     if (cap) cap.innerHTML = '已通关 <b>' + cleared + '</b> / ' + LEVELS.length + ' 关　·　' + next;
     if (!list.length) {
       box.innerHTML = '<div class="hempty">还没有闯关记录。<br />从第 1 关开始，最远到过哪一关都会记在这里。</div>';
