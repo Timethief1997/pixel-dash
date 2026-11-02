@@ -319,73 +319,49 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) setPaused(true);
 });
 
-/* ---- 虚拟摇杆（浮动底座 + 8 向滞回 + 幅度调速） ---- */
+/* ---- 虚拟摇杆（浮动底座 + 全向平滑 + 8 方向箭头） ---- */
 const stickEl = $('#stick'), knobEl = $('#knob'), stickZone = $('#stickZone');
-const stickDirEl = $('#stickDir');
-let stickId = null, stickAnchor = null, stickLock = -1, stickMag = 0;
-const STICK_DEAD = 0.18;   // 死区：占最大偏移的比例（半径内不响应）
-const STICK_HYST = 10;     // 方向切换滞回（度），防止边界抖动导致 45° 跳变
-
-/* 角度 -> 8 扇区；只有偏离当前扇区中心超过 22.5°+滞回才换向 */
-function stickDir(deg) {
-  const step = 45;
-  if (stickLock < 0) stickLock = ((Math.round(deg / step) % 8) + 8) % 8;
-  else {
-    let d = deg - stickLock * step;
-    d = ((d + 540) % 360) - 180;
-    if (Math.abs(d) > step / 2 + STICK_HYST) stickLock = ((Math.round(deg / step) % 8) + 8) % 8;
-  }
-  const a = stickLock * Math.PI / 4;
-  return [Math.cos(a), Math.sin(a)];
-}
+let stickId = null, stickAnchor = null, stickMag = 0;
+const STICK_DEAD = 0.12;   // 死区 12%（比旧版 18% 更灵敏）
+const STICK_MAX_RATIO = 0.7; // 旋钮最大偏移 = 外圆半径 × 70%
 
 function stickMove(cx, cy) {
   if (!stickAnchor) return;
   const size = stickEl.offsetWidth || 100;
-  const max = size * 0.32 - 2;   // 留出旋钮半径，推到极限时旋钮仍留在底座内
+  const max = (size / 2) * STICK_MAX_RATIO;
   const dx = cx - stickAnchor.x, dy = cy - stickAnchor.y;
   const len = Math.hypot(dx, dy);
   const cl = Math.min(len, max);
   const ux = len ? dx / len : 0, uy = len ? dy / len : 0;
   knobEl.style.transform = `translate(${(ux * cl).toFixed(1)}px,${(uy * cl).toFixed(1)}px)`;
-  if (len < max * STICK_DEAD) {          // 半径死区：轻触不动
+  if (len < max * STICK_DEAD) {          // 死区：轻触不动
     stickMag = 0;
-    stickEl.classList.remove('active');
     keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
     return;
   }
+  /* 全向 360°，不做 8 向滞回（王者荣耀风格） */
   stickMag = Math.min(1, (len / max - STICK_DEAD) / (1 - STICK_DEAD));
-  const deg = Math.atan2(dy, dx) * 180 / Math.PI;
-  const [sx, sy] = stickDir(deg);
-  keys['a'] = sx < -0.01; keys['d'] = sx > 0.01;
-  keys['w'] = sy < -0.01; keys['s'] = sy > 0.01;
-  stickShowDir(stickLock * 45);
+  keys['a'] = ux < -0.01; keys['d'] = ux > 0.01;
+  keys['w'] = uy < -0.01; keys['s'] = uy > 0.01;
 }
 
-/* 方位提示：底座内圈的 45° 弧带跟随当前 8 向 */
-function stickShowDir(deg) {
-  stickDirEl.style.transform = 'rotate(' + deg + 'deg)';
-  stickEl.classList.add('active');
-}
-
-/* 按下处即零点：底座跟着手指生成，方向看相对位移 */
+/* 按下处即零点：底座跟着手指生成 */
 function stickShow(cx, cy) {
   const zr = stickZone.getBoundingClientRect();
   const size = stickEl.offsetWidth || 100;
-  const half = size / 2 + 14;   // 外沿方位弧带也需要留出空间
+  const half = size / 2 + 2;
   const px = Math.min(Math.max(cx, zr.left + half), zr.left + zr.width - half);
   const py = Math.min(Math.max(cy, zr.top + half), zr.top + zr.height - half);
   stickEl.style.left = (px - zr.left) + 'px';
   stickEl.style.top = (py - zr.top) + 'px';
   stickEl.classList.add('on');
-  stickEl.classList.remove('active');
   stickAnchor = { x: px, y: py };
   knobEl.style.transform = 'translate(0px,0px)';
 }
 
 function stickReset() {
-  stickId = null; stickAnchor = null; stickLock = -1; stickMag = 0;
-  stickEl.classList.remove('on', 'active');
+  stickId = null; stickAnchor = null; stickMag = 0;
+  stickEl.classList.remove('on');
   stickEl.style.left = ''; stickEl.style.top = '';
   knobEl.style.transform = '';
   keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;

@@ -542,36 +542,40 @@
   #stickZone{position:absolute;left:0;top:0;width:52%;height:100%;pointer-events:auto;touch-action:none}
   #stick{
     position:absolute;left:calc(2.6vmin + clamp(42px,19%,84px));top:calc(100% - 2.6vmin - clamp(42px,19%,84px));
-    height:clamp(84px,38%,168px);aspect-ratio:1;transform:translate(-50%,-50%);
-    border-radius:50%;pointer-events:none;touch-action:none;opacity:.26;
-    background:radial-gradient(circle at 50% 50%,rgba(99,217,255,.12),rgba(8,14,24,.78));
-    border:2px solid rgba(99,217,255,.32);box-shadow:inset 0 0 18px rgba(99,217,255,.12);
-    transition:opacity .14s ease;
+    height:clamp(120px,55%,240px);aspect-ratio:1;transform:translate(-50%,-50%);
+    border-radius:50%;pointer-events:none;touch-action:none;opacity:.25;
+    background:radial-gradient(circle at 50% 50%,rgba(99,217,255,.08),rgba(8,14,24,.02));
+    border:2px solid rgba(99,217,255,.45);
+    box-shadow:0 0 20px rgba(99,217,255,.15),inset 0 0 18px rgba(99,217,255,.08);
+    transition:opacity .15s ease;
   }
   #stick.on{opacity:1}
-  #stickTicks,#stickDir{position:absolute;inset:0;border-radius:50%;pointer-events:none}
-  /* 8 向刻度 */
-  #stickTicks{
-    background:repeating-conic-gradient(from 0deg, rgba(99,217,255,.34) 0 1.2deg, transparent 1.2deg 45deg);
-    -webkit-mask:radial-gradient(circle closest-side, transparent 0 81%, #000 82% 90%, transparent 91%);
-    mask:radial-gradient(circle closest-side, transparent 0 81%, #000 82% 90%, transparent 91%);
+  /* 内圈虚线：旋钮最大运动范围预览 */
+  #stick::before{
+    content:'';position:absolute;inset:16%;border-radius:50%;
+    border:1px dashed rgba(99,217,255,.25);pointer-events:none;
   }
-  /* 当前选定的 45° 方位弧带（画在底座外沿，避免被旋钮挡住） */
-  #stickDir{
-    inset:-16%;border-radius:50%;
-    background:conic-gradient(from 67.5deg,
-      rgba(99,217,255,.72) 0deg 1.8deg,
-      rgba(99,217,255,.26) 1.8deg 45deg,
-      rgba(99,217,255,0) 45deg 360deg);
-    -webkit-mask:radial-gradient(circle closest-side, transparent 0 78%, #000 79% 90%, transparent 91%);
-    mask:radial-gradient(circle closest-side, transparent 0 78%, #000 79% 90%, transparent 91%);
-    opacity:0;transition:opacity .12s ease;transform-origin:50% 50%;
+  /* 8 方向箭头常驻外圈 */
+  #stickArrows{position:absolute;inset:0;border-radius:50%;pointer-events:none}
+  .arrow{
+    position:absolute;width:0;height:0;pointer-events:none;
+    border-left:6px solid transparent;border-right:6px solid transparent;
+    border-bottom:10px solid rgba(99,217,255,.55);
   }
-  #stick.active #stickDir{opacity:1}
+  /* 主方向↑↓←→ 更亮，副方向↖↗↘↙ 稍暗 */
+  .arrow.t{top:5px;left:50%;margin-left:-6px;border-bottom-color:rgba(99,217,255,.75)}
+  .arrow.tr{top:14px;right:14px;transform:rotate(45deg);border-bottom-color:rgba(99,217,255,.35)}
+  .arrow.r{right:5px;top:50%;margin-top:-6px;transform:rotate(90deg);border-bottom-color:rgba(99,217,255,.75)}
+  .arrow.br{bottom:14px;right:14px;transform:rotate(135deg);border-bottom-color:rgba(99,217,255,.35)}
+  .arrow.b{bottom:5px;left:50%;margin-left:-6px;transform:rotate(180deg);border-bottom-color:rgba(99,217,255,.75)}
+  .arrow.bl{bottom:14px;left:14px;transform:rotate(225deg);border-bottom-color:rgba(99,217,255,.35)}
+  .arrow.l{left:5px;top:50%;margin-top:-6px;transform:rotate(-90deg);border-bottom-color:rgba(99,217,255,.75)}
+  .arrow.tl{top:14px;left:14px;transform:rotate(-45deg);border-bottom-color:rgba(99,217,255,.35)}
+  #stickTicks,#stickDir{display:none}  /* 旧版 45° 弧带不再使用 */
   #knob{
-    position:absolute;left:50%;top:50%;width:36%;height:36%;margin:-18% 0 0 -18%;
-    border-radius:50%;background:rgba(99,217,255,.42);border:2px solid rgba(255,255,255,.55);
-    box-shadow:0 0 12px rgba(99,217,255,.45);pointer-events:none;
+    position:absolute;left:50%;top:50%;width:38%;height:38%;margin:-19% 0 0 -19%;
+    border-radius:50%;background:rgba(99,217,255,.55);border:2px solid rgba(255,255,255,.70);
+    box-shadow:0 0 18px rgba(99,217,255,.50),inset -3px -3px 8px rgba(0,0,0,.25),inset 3px 3px 8px rgba(255,255,255,.18);pointer-events:none;
   }
   #dashBtn{
     position:absolute;right:3.2vmin;bottom:3.6vmin;pointer-events:auto;touch-action:none;
@@ -1653,8 +1657,16 @@
 
   <div id="mobileControls">
     <div id="stickZone"><div id="stick">
-      <div id="stickTicks"></div>
-      <div id="stickDir"></div>
+      <div id="stickArrows">
+        <div class="arrow t"></div>
+        <div class="arrow tr"></div>
+        <div class="arrow r"></div>
+        <div class="arrow br"></div>
+        <div class="arrow b"></div>
+        <div class="arrow bl"></div>
+        <div class="arrow l"></div>
+        <div class="arrow tl"></div>
+      </div>
       <div id="knob"></div>
     </div></div>
     <button id="dashBtn">冲刺</button>
