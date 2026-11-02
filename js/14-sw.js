@@ -36,7 +36,11 @@
   if (checkBtn) checkBtn.addEventListener('click', checkUpdate);
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) location.reload();
+    /* SW 被新版本替换了：自动 reload 一次让页面用新 SW 提供的文件。
+       用 sessionStorage 防循环：只有首次 controllerchange 才 reload。 */
+    if (sessionStorage.getItem('pd.sw.reloaded') === '1') return;
+    sessionStorage.setItem('pd.sw.reloaded', '1');
+    location.reload();
   });
 
   function bind(reg) {

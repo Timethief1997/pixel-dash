@@ -3,8 +3,9 @@
    - 导航请求（HTML）network-first：始终优先拿最新页面，断网时回退缓存
    - 静态资源（js / css / 图标）stale-while-revalidate：先用缓存秒开，后台静默更新
    - BGM 不进缓存（4.3MB），交给浏览器自身的 HTTP 缓存
-   新版本安装后不会自动接管：页面上会出现「发现新版本」提示，点更新才 skipWaiting。 */
-const VERSION = 'v17';
+   新版本 install 时直接 skipWaiting + 页面 controllerchange 后自动 reload 一次。
+   ⚠️ 每次 bump VERSION 都要同步更新 14-sw.js 的 reload 逻辑。 */
+const VERSION = 'v18';
 const CACHE = 'pixel-dash-' + VERSION;
 
 const PRECACHE = [
@@ -35,8 +36,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
       .then((cache) => cache.addAll(PRECACHE))
-      // 不调用 skipWaiting：等页面提示用户点「立即更新」
-      .catch(() => {})
+      .then(() => self.skipWaiting())   // 不等旧 SW 退出，立刻准备接管
+      .catch(() => self.skipWaiting())
   );
 });
 
