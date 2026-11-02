@@ -1,0 +1,8 @@
+# 微信小游戏 + 教学包（硬规则不进 GH）
+minigame/
+learn/
+*.zip
+
+# 开发临时文件
+.DS_Store
+*.log
