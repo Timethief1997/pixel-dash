@@ -446,19 +446,19 @@ function drawCore() {
 const HERO_W = 16, HERO_H = 16;
 const HERO_ART = {
   scout: {
-    /* 黄帽冒险者：帽檐双色、红围巾、蓝上衣浅色胸甲、金腰带、皮靴 */
-    pal: { k: '#1b1418', H: '#ffe066', h: '#e0a93a', o: '#8a5c22', s: '#f7cfa6', m: '#b8624a', e: '#1a202c', r: '#e05a4e', b: '#35548c', B: '#8fc0f0', g: '#ffcf5c' },
+    /* 金发冒险者：金色尖刺短发、金围巾、蓝上衣浅色胸甲、金腰带、皮靴 */
+    pal: { k: '#1b1418', H: '#ffd84a', h: '#d99a2a', o: '#8a5c22', s: '#f7cfa6', m: '#b8624a', e: '#1a202c', g: '#ffcf5c', b: '#35548c', B: '#8fc0f0' },
     art: [
-      '.....kkkkkk.....',
-      '....kHHHHHHk....',
-      '...kHhhhhhhHk...',
-      '...kkhhhhhhkk...',
-      '..kooooooooook..',
+      '..kk.kk..kk.kk..',
+      '.kHHkHHkkHHkHHk.',
+      '.kHHHHHHHHHHHHk.',
+      '.khHHHHHHHHHHhk.',
+      '.khHssssssssHhk.',
       '...kssssssssk...',
       '...ksseesseek...',
       '...ksssmssssk...',
-      '...krrrrrrrrk...',
-      '..kbbrrrrrrbbk..',
+      '...kggggggggk...',
+      '..kbbggggggbbk..',
       '..kbBBBBBBBBbk..',
       '..kbBBggggBBbk..',
       '...kbbbbbbbbk...',

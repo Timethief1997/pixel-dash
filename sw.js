@@ -5,7 +5,7 @@
    - BGM 不进缓存（4.3MB），交给浏览器自身的 HTTP 缓存
    新版本 install 时不 skipWaiting：等页面弹出「发现新版本」提示，
    用户点「立即更新」才 postMessage SKIP_WAITING → controllerchange → reload。 */
-const VERSION = 'v20';
+const VERSION = 'v22';
 const CACHE = 'pixel-dash-' + VERSION;
 
 const PRECACHE = [
